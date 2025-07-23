@@ -1,0 +1,12 @@
+[
+  { "_id": { "$oid": "64a1f0a1c1a1b1c1d1e1f001" }, "name": "John Wick", "email": "johnwick@continental.com", "password": "hashed_pw_1", "role": "user" },
+  { "_id": { "$oid": "64a1f0a1c1a1b1c1d1e1f002" }, "name": "Goku Son", "email": "goku@dbz.com", "password": "hashed_pw_2", "role": "user" },
+  { "_id": { "$oid": "64a1f0a1c1a1b1c1d1e1f003" }, "name": "Tony Stark", "email": "ironman@starkindustries.com", "password": "hashed_pw_3", "role": "user" },
+  { "_id": { "$oid": "64a1f0a1c1a1b1c1d1e1f004" }, "name": "Naruto Uzumaki", "email": "naruto@konoha.com", "password": "hashed_pw_4", "role": "user" },
+  { "_id": { "$oid": "64a1f0a1c1a1b1c1d1e1f005" }, "name": "Lara Croft", "email": "lara@tombraider.com", "password": "hashed_pw_5", "role": "user" },
+  { "_id": { "$oid": "64a1f0a1c1a1b1c1d1e1f006" }, "name": "Bruce Wayne", "email": "batman@wayneenterprises.com", "password": "hashed_pw_6", "role": "admin" },
+  { "_id": { "$oid": "64a1f0a1c1a1b1c1d1e1f007" }, "name": "Levi Ackerman", "email": "levi@scoutinglegion.com", "password": "hashed_pw_7", "role": "user" },
+  { "_id": { "$oid": "64a1f0a1c1a1b1c1d1e1f008" }, "name": "Hermione Granger", "email": "hermione@hogwarts.edu", "password": "hashed_pw_8", "role": "user" },
+  { "_id": { "$oid": "64a1f0a1c1a1b1c1d1e1f009" }, "name": "James Bond", "email": "bond007@mi6.uk", "password": "hashed_pw_9", "role": "user" },
+  { "_id": { "$oid": "64a1f0a1c1a1b1c1d1e1f010" }, "name": "Thanos Titan", "email": "thanos@infinitywar.com", "password": "hashed_pw_10", "role": "user" }
+]

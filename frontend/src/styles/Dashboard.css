@@ -1,0 +1,16 @@
+.dashboard-container {
+  padding: 20px;
+}
+
+.user-info {
+  margin-top: 20px;
+}
+
+.form-actions {
+  margin: 15px 0;
+}
+
+button {
+  margin: 5px;
+  padding: 8px 12px;
+}

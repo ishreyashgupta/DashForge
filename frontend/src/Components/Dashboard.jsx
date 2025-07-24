@@ -1,3 +1,4 @@
+// frontend/src/Components/Dashboard.jsx - Updated to use new routes
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -6,7 +7,7 @@ import ViewFormModal from "../components/ViewFormModal";
 import "../styles/Dashboard.css";
 
 function Dashboard() {
-  const { token, name, email } = useAuth(); // ✅ use your custom hook
+  const { token, name, email } = useAuth();
   const [formFilled, setFormFilled] = useState(false);
   const [formDetails, setFormDetails] = useState(null);
   const navigate = useNavigate();
@@ -17,11 +18,9 @@ function Dashboard() {
       return;
     }
 
-    // ✅ Check if form already submitted
+    // Check if personal form already submitted
     fetch("http://localhost:5000/api/form/check-form", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
       .then((data) => {
@@ -33,26 +32,24 @@ function Dashboard() {
   }, [token, navigate]);
 
   const handleLogout = () => {
-    localStorage.removeItem("user"); // ✅ clear consistent key
+    localStorage.removeItem("user");
     toast.success("Logged out successfully!");
     navigate("/login");
   };
 
-  const handleEditForm = () => {
-    navigate("/form?edit=true");
+  const handleEditPersonalForm = () => {
+    navigate("/personal-form?edit=true"); // ✅ Personal form route
   };
 
-  const handleDeleteForm = () => {
+  const handleDeletePersonalForm = () => {
     fetch("http://localhost:5000/api/form/delete-form", {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          toast.success("Form deleted successfully");
+          toast.success("Personal form deleted successfully");
           setFormFilled(false);
           setFormDetails(null);
         } else {
@@ -65,11 +62,9 @@ function Dashboard() {
       });
   };
 
-  const handleShowDetails = () => {
+  const handleShowPersonalDetails = () => {
     fetch("http://localhost:5000/api/form/me", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
       .then((data) => {
@@ -94,37 +89,50 @@ function Dashboard() {
           <p>Welcome, {name}</p>
           <p>Email: {email}</p>
 
-          {!formFilled ? (
-            <button onClick={() => navigate("/form")}>Fill the Form</button>
-          ) : (
-            <>
-              <button onClick={handleEditForm} style={{ margin: "10px" }}>
-                Edit Form
-              </button>
-              <button
-                onClick={handleDeleteForm}
-                style={{
-                  margin: "10px",
-                  backgroundColor: "red",
-                  color: "white",
-                }}
+          {/* ====== PERSONAL FORM SECTION ====== */}
+          <div className="form-section">
+            <h3>📋 Personal Information Form</h3>
+            {!formFilled ? (
+              <button 
+                onClick={() => navigate("/personal-form")}
+                className="btn btn-primary"
               >
-                Delete Form
+                Fill Personal Form
               </button>
-              <button
-                onClick={handleShowDetails}
-                style={{
-                  margin: "10px",
-                  backgroundColor: "green",
-                  color: "white",
-                }}
-              >
-                Show My Details
-              </button>
-            </>
-          )}
+            ) : (
+              <div className="form-actions">
+                <button onClick={handleEditPersonalForm} className="btn btn-warning">
+                  Edit Personal Form
+                </button>
+                <button onClick={handleDeletePersonalForm} className="btn btn-danger">
+                  Delete Personal Form
+                </button>
+                <button onClick={handleShowPersonalDetails} className="btn btn-success">
+                  Show Personal Details
+                </button>
+              </div>
+            )}
+          </div>
 
-          <br />
+          {/* ====== FORM BUILDER SECTION ====== */}
+          <div className="form-section">
+            <h3>🛠️ Form Builder</h3>
+            <div className="form-builder-actions">
+              <button 
+                onClick={() => navigate("/form-builder")}
+                className="btn btn-primary"
+              >
+                Create New Form
+              </button>
+              <button 
+                onClick={() => navigate("/my-forms")}
+                className="btn btn-secondary"
+              >
+                My Created Forms
+              </button>
+            </div>
+          </div>
+
           <button
             onClick={handleLogout}
             style={{

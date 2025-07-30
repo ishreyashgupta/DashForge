@@ -90,7 +90,7 @@ const AdminDashboard = () => {
               <button
                 onClick={() => {
                   if (formId) {
-                    navigate(`/form/${formId}?edit=true`);
+                    navigate(`/personal-form/${formId}?edit=true`); // ✅ FIXED
                   } else {
                     console.error("❌ Missing form ID");
                   }
@@ -99,6 +99,7 @@ const AdminDashboard = () => {
               >
                 Edit
               </button>
+
               <button
                 onClick={() => handleDelete(formId)}
                 className="btn btn-sm btn-danger"
@@ -157,15 +158,14 @@ const AdminDashboard = () => {
 
       {/* View Modal */}
       {viewMode && selectedForm && (
-  <ViewFormModal
-    form={selectedForm}
-    onClose={() => {
-      setViewMode(false);
-      setSelectedForm(null);
-    }}
-  />
-)}
-
+        <ViewFormModal
+          form={selectedForm}
+          onClose={() => {
+            setViewMode(false);
+            setSelectedForm(null);
+          }}
+        />
+      )}
     </div>
   );
 };

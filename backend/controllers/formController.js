@@ -1,7 +1,5 @@
 const FormData = require("../models/FormData");
 
-// ✅ Submit or Update Form
-// ✅ Submit or Update Form
 exports.submitForm = async (req, res) => {
   try {
     const existingForm = await FormData.findOne({ userId: req.user._id });
@@ -11,7 +9,7 @@ exports.submitForm = async (req, res) => {
         { userId: req.user._id },
         req.body,
         { new: true } // ✅ return updated doc
-      );
+      );                                                 
       return res.json({
         message: "Form updated successfully",
         formId: updatedForm._id, // ✅ always return formId

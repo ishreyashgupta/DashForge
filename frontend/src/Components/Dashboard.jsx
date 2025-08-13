@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import useAuth from "../hooks/useAuth";
 import ViewFormModal from "../components/ViewFormModal";
 import "../styles/Dashboard.css";
-
+import FormFieldTable from "./UDF/FormFieldTable";
 function Dashboard() {
   const { token, name, email } = useAuth(); // ✅ use your custom hook
   const [formFilled, setFormFilled] = useState(false);
@@ -93,7 +93,29 @@ function Dashboard() {
         <div>
           <p>Welcome, {name}</p>
           <p>Email: {email}</p>
+<button
+  onClick={() => navigate("/create-form")}
+  style={{
+    margin: "10px",
+    backgroundColor: "#007bff",
+    color: "white",
+    padding: "10px 15px",
+    border: "none",
+    borderRadius: "5px",
+    cursor: "pointer",
+  }}
+>
+  Create New Form
+</button>
 
+<button
+          onClick={() => navigate("/udf/forms")}
+          style={{ marginLeft: "10px" }}
+        >
+          View UDF Forms
+        </button>
+
+        
           {!formFilled ? (
             <button onClick={() => navigate("/form")}>Fill the Form</button>
           ) : (
@@ -142,7 +164,7 @@ function Dashboard() {
           >
             Logout
           </button>
-
+           
           {formDetails && (
             <ViewFormModal
               form={formDetails}

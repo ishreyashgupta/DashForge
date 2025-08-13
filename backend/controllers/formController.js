@@ -17,7 +17,7 @@ exports.submitForm = async (req, res) => {
         formId: updatedForm._id, // ✅ always return formId
       });
     }
-
+ 
     const formData = new FormData({
       ...req.body,
       userId: req.user._id,
@@ -49,20 +49,20 @@ exports.updateForm = async (req, res) => {
   }
 };
 
-
 // ✅ Delete a user's form
 exports.deleteForm = async (req, res) => {
   try {
     await FormData.deleteOne({ userId: req.user._id });
     res.json({ success: true, message: "Form deleted successfully" });
   } catch (err) {
+
     console.error("Form Delete Error:", err);
     res.status(500).json({ success: false, message: "Failed to delete form" });
   }
 };
 
 
-// ✅ Check if user has submitted a form
+// ✅ Check if user has submitted a form 
 exports.checkForm = async (req, res) => {
   try {
     const form = await FormData.findOne({ userId: req.user._id });

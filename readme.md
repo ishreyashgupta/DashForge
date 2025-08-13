@@ -81,4 +81,4 @@ VITE_API_URL=http://localhost:5000/api
 
 ## 📄 License
 
-MIT © [Your Name](https://github.com/yourusername)
+This project is not licensed for use, reproduction, or distribution. All rights reserved.

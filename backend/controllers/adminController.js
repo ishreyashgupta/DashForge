@@ -12,7 +12,7 @@ exports.getAllForms = async (req, res) => {
   }
 };
 
-// GET /api/admin/forms/:formId
+// GET /api/admin/forms/:formId  
 exports.getFormByFormId = async (req, res) => {
   try {
     const { formId } = req.params;
@@ -84,3 +84,4 @@ exports.deleteFormByFormId = async (req, res) => {
     res.status(500).json({ message: "Failed to delete form" });
   }
 };
+ 

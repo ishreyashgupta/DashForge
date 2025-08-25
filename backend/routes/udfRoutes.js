@@ -1,16 +1,17 @@
 const express = require("express");
 const router = express.Router();
-const {
-  createUDFForm,
-  getUDFForms,
-  getUDFFormById,
-  updateUDFForm,
-} = require("../controllers/udfController");
+const udfController = require("../controllers/udfController");
 
-// Base URL: /api/udf
-router.post("/forms", createUDFForm);
-router.get("/forms", getUDFForms);
-router.get("/forms/:id", getUDFFormById);
-router.put("/forms/:id", updateUDFForm);
+// ✅ Route for fetching metadata
+router.get("/meta", udfController.getMeta);
+
+// ✅ CRUD routes for UDF forms
+router.post("/", udfController.createForm);
+router.get("/forms", udfController.getForms);
+router.get("/:id", udfController.getFormById);
+router.put("/:id", udfController.updateForm);
+router.delete("/forms/:id", udfController.deleteForm);
+
+
 
 module.exports = router;

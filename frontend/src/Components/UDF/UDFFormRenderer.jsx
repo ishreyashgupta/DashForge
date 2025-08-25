@@ -1,153 +1,176 @@
-import React, { useState, useEffect } from "react";
-import { getUDFFormById } from "../../services/udfservice"; // UDF API service
+import React, { useEffect, useMemo, useState } from "react";
+import { getUDFFormById } from "../../services/udfservice";
 
-function UDFFormRenderer({ formId, onSubmit }) {
-  const [form, setForm] = useState(null);
-  const [formData, setFormData] = useState({});
+export default function UDFFormRenderer({ formId, form, onSubmit }) {
+  const [loadedForm, setLoadedForm] = useState(null);
+  const [values, setValues] = useState({});
+  const [errors, setErrors] = useState({});
 
+  // Initialize form when `form` prop is passed
   useEffect(() => {
-    if (formId) {
-      getUDFFormById(formId)
-        .then((data) => {
-          setForm(data);
-          // Initialize formData with default values
-          const initData = {};
-          data.fields.forEach((f) => {
-            initData[f.fieldName] = f.properties.defaultValue || "";
-          });
-          setFormData(initData);
-        })
-        .catch((err) => console.error(err));
+    if (form) {
+      setLoadedForm(form);
+      const init = {};
+      (form.fields || []).forEach(field => {
+        if (field.inputType === "checkbox") init[field.fieldName] = !!field.defaultValue;
+        else if (field.inputType === "multiselect") init[field.fieldName] = Array.isArray(field.defaultValue) ? field.defaultValue : [];
+        else init[field.fieldName] = field.defaultValue ?? "";
+      });
+      setValues(init);
     }
-  }, [formId]);
+  }, [form]);
 
-  if (!form) return <p>Loading form...</p>;
+  // Fetch form by formId if not passed
+  useEffect(() => {
+    if (!formId || form) return;
+    getUDFFormById(formId)
+      .then(f => {
+        setLoadedForm(f);
+        const init = {};
+        (f.fields || []).forEach(field => {
+          if (field.inputType === "checkbox") init[field.fieldName] = !!field.defaultValue;
+          else if (field.inputType === "multiselect") init[field.fieldName] = Array.isArray(field.defaultValue) ? field.defaultValue : [];
+          else init[field.fieldName] = field.defaultValue ?? "";
+        });
+        setValues(init);
+      })
+      .catch(console.error);
+  }, [formId, form]);
 
-  // Handle input change
-  const handleChange = (fieldName, value) => {
-    setFormData({ ...formData, [fieldName]: value });
+  const currentForm = useMemo(() => loadedForm || form, [loadedForm, form]);
+
+  if (!currentForm) return <div>Loading form...</div>;
+
+  const setValue = (name, val) => setValues(prev => ({ ...prev, [name]: val }));
+
+  const runValidation = () => {
+    const err = {};
+    (currentForm.fields || []).forEach(f => {
+      const v = values[f.fieldName];
+
+      // Required validation
+      if (f.required) {
+        const empty = f.inputType === "checkbox"
+          ? v !== true && v !== false
+          : (v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0));
+        if (empty) err[f.fieldName] = "Required";
+      }
+
+      if (v != null && v !== "") {
+        if (f.validation?.minLength && String(v).length < f.validation.minLength)
+          err[f.fieldName] = `Min length ${f.validation.minLength}`;
+        if (f.validation?.maxLength && String(v).length > f.validation.maxLength)
+          err[f.fieldName] = `Max length ${f.validation.maxLength}`;
+        if (f.validation?.min != null && Number(v) < f.validation.min)
+          err[f.fieldName] = `Min value ${f.validation.min}`;
+        if (f.validation?.max != null && Number(v) > f.validation.max)
+          err[f.fieldName] = `Max value ${f.validation.max}`;
+        if (f.validation?.pattern) {
+          try {
+            const re = new RegExp(f.validation.pattern);
+            if (!re.test(String(v))) err[f.fieldName] = "Invalid format";
+          } catch (_) {}
+        }
+        if (f.dataType === "email") {
+          const re = /\S+@\S+\.\S+/;
+          if (!re.test(String(v))) err[f.fieldName] = "Invalid email";
+        }
+        if (f.dataType === "url") {
+          try { new URL(String(v)); } catch { err[f.fieldName] = "Invalid URL"; }
+        }
+      }
+    });
+    setErrors(err);
+    return Object.keys(err).length === 0;
   };
 
-  // Handle form submission
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (onSubmit) onSubmit(formData);
-    else alert(JSON.stringify(formData, null, 2));
+    if (!runValidation()) return;
+    onSubmit?.(values);
+    if (!onSubmit) alert(JSON.stringify(values, null, 2));
+  };
+
+  const renderField = (f) => {
+    const common = {
+      name: f.fieldName,
+      value: values[f.fieldName] ?? "",
+      onChange: (e) => setValue(f.fieldName, e.target.value),
+      placeholder: f.placeholder || "",
+    };
+
+    switch (f.inputType) {
+      case "textarea":
+        return <textarea {...common} rows={4} />;
+      case "number":
+        return <input type="number" {...common} />;
+      case "email":
+        return <input type="email" {...common} />;
+      case "password":
+        return <input type="password" {...common} />;
+      case "url":
+        return <input type="url" {...common} />;
+      case "date":
+        return <input type="date" {...common} />;
+      case "datetime-local":
+        return <input type="datetime-local" {...common} />;
+      case "color":
+        return <input type="color" {...common} />;
+      case "range":
+        return <input type="range" {...common} min={f.validation?.min} max={f.validation?.max} />;
+      case "checkbox":
+        return <input type="checkbox" checked={!!values[f.fieldName]} onChange={(e) => setValue(f.fieldName, e.target.checked)} />;
+      case "select":
+        return (
+          <select {...common}>
+            <option value="">Select...</option>
+            {(f.options || []).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        );
+      case "multiselect":
+        return (
+          <select multiple value={values[f.fieldName] || []} onChange={(e) => {
+            const arr = Array.from(e.target.selectedOptions).map(o => o.value);
+            setValue(f.fieldName, arr);
+          }}>
+            {(f.options || []).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        );
+      case "radio":
+        return (
+          <div style={{ display: "flex", gap: 12 }}>
+            {(f.options || []).map(o => (
+              <label key={o.value}>
+                <input type="radio" name={f.fieldName} value={o.value} checked={values[f.fieldName] === String(o.value)} onChange={(e)=> setValue(f.fieldName, e.target.value)} />{" "}
+                {o.label}
+              </label>
+            ))}
+          </div>
+        );
+      case "file":
+        return <input type="file" onChange={(e) => setValue(f.fieldName, e.target.files?.[0] || null)} />;
+      default:
+        return <input type="text" {...common} />;
+    }
   };
 
   return (
-    <div>
-      <h2>{form.name}</h2>
-      <form onSubmit={handleSubmit}>
-        {form.fields.map((field) => {
-          const { fieldName, inputType, properties } = field;
+    <form onSubmit={handleSubmit} style={{ maxWidth: 800, margin: "0 auto", padding: 16 }}>
+      <h3>{currentForm.name || "Untitled Form"}</h3>
+      {currentForm.description && <p>{currentForm.description}</p>}
 
-          // Required indicator
-          const required = properties.required;
+      {(currentForm.fields || []).map(f => (
+        <div key={f.fieldName || Math.random()} style={{ marginBottom: 14 }}>
+          <label style={{ display: "block", fontWeight: 600 }}>
+            {f.label || f.fieldName}{f.required ? " *" : ""}
+          </label>
+          {renderField(f)}
+          {f.helpText && <small style={{ display: "block", opacity: 0.75 }}>{f.helpText}</small>}
+          {errors[f.fieldName] && <div style={{ color: "crimson" }}>{errors[f.fieldName]}</div>}
+        </div>
+      ))}
 
-          // Render based on input type
-          switch (inputType) {
-            case "text":
-            case "varchar":
-            case "int":
-            case "float":
-            case "date":
-              return (
-                <div key={fieldName} style={{ marginBottom: "10px" }}>
-                  <label>
-                    {fieldName} {required && "*"}
-                  </label>
-                  <br />
-                  <input
-                    type={inputType === "date" ? "date" : "text"}
-                    value={formData[fieldName]}
-                    onChange={(e) => handleChange(fieldName, e.target.value)}
-                    required={required}
-                  />
-                </div>
-              );
-
-            case "textarea":
-              return (
-                <div key={fieldName} style={{ marginBottom: "10px" }}>
-                  <label>
-                    {fieldName} {required && "*"}
-                  </label>
-                  <br />
-                  <textarea
-                    value={formData[fieldName]}
-                    onChange={(e) => handleChange(fieldName, e.target.value)}
-                    required={required}
-                  />
-                </div>
-              );
-
-            case "checkbox":
-              return (
-                <div key={fieldName} style={{ marginBottom: "10px" }}>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={formData[fieldName]}
-                      onChange={(e) => handleChange(fieldName, e.target.checked)}
-                    />{" "}
-                    {fieldName} {required && "*"}
-                  </label>
-                </div>
-              );
-
-            case "dropdown":
-              return (
-                <div key={fieldName} style={{ marginBottom: "10px" }}>
-                  <label>
-                    {fieldName} {required && "*"}
-                  </label>
-                  <br />
-                  <select
-                    value={formData[fieldName]}
-                    onChange={(e) => handleChange(fieldName, e.target.value)}
-                    required={required}
-                  >
-                    {/* If you want, you can extend properties to include options */}
-                    <option value="">Select...</option>
-                  </select>
-                </div>
-              );
-
-            case "multiselect":
-              return (
-                <div key={fieldName} style={{ marginBottom: "10px" }}>
-                  <label>
-                    {fieldName} {required && "*"}
-                  </label>
-                  <br />
-                  <select
-                    multiple
-                    value={formData[fieldName]}
-                    onChange={(e) =>
-                      handleChange(
-                        fieldName,
-                        Array.from(e.target.selectedOptions, (option) => option.value)
-                      )
-                    }
-                    required={required}
-                  >
-                    {/* You can add options via properties.options */}
-                  </select>
-                </div>
-              );
-
-            default:
-              return null;
-          }
-        })}
-
-        <button type="submit" style={{ marginTop: "10px" }}>
-          Submit
-        </button>
-      </form>
-    </div>
+      <button type="submit">Submit</button>
+    </form>
   );
 }
-
-export default UDFFormRenderer;

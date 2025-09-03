@@ -1,14 +1,17 @@
 const mongoose = require("mongoose");
 
+// ✅ Add "none" for dataType since pageBreak doesn't need a datatype
 const DATA_TYPES = [
   "string", "number", "boolean", "date", "datetime",
-  "email", "url", "file", "json"
+  "email", "url", "file", "json", "none" // ✅ Added
 ];
 
+// ✅ Add "pageBreak" for splitting forms into pages
 const INPUT_TYPES = [
   "text", "number", "email", "password", "textarea",
   "select", "multiselect", "radio", "checkbox",
-  "date", "datetime-local", "file", "url", "color", "range"
+  "date", "datetime-local", "file", "url", "color", "range",
+  "pageBreak" // ✅ Added here
 ];
 
 const OptionSchema = new mongoose.Schema(
@@ -21,8 +24,8 @@ const OptionSchema = new mongoose.Schema(
 
 const FieldSchema = new mongoose.Schema(
   {
-    fieldName: { type: String, required: true, trim: true }, // key
-    label: { type: String, required: true, trim: true },      // UI label
+    fieldName: { type: String, required: true, trim: true },
+    label: { type: String, required: true, trim: true },
     dataType: { type: String, enum: DATA_TYPES, required: true },
     inputType: { type: String, enum: INPUT_TYPES, required: true },
 
@@ -32,7 +35,7 @@ const FieldSchema = new mongoose.Schema(
     required: { type: Boolean, default: false },
     defaultValue: { type: mongoose.Schema.Types.Mixed, default: null },
 
-    options: { type: [OptionSchema], default: [] }, // for select/radio/multiselect
+    options: { type: [OptionSchema], default: [] },
 
     validation: {
       type: new mongoose.Schema(
@@ -41,7 +44,7 @@ const FieldSchema = new mongoose.Schema(
           maxLength: { type: Number },
           min: { type: Number },
           max: { type: Number },
-          pattern: { type: String }, // regex string
+          pattern: { type: String },
         },
         { _id: false }
       ),
@@ -49,7 +52,6 @@ const FieldSchema = new mongoose.Schema(
     },
 
     visibleIf: {
-      // optional conditional visibility: { field: 'status', equals: true }
       type: new mongoose.Schema(
         { field: String, equals: mongoose.Schema.Types.Mixed },
         { _id: false }
@@ -60,8 +62,14 @@ const FieldSchema = new mongoose.Schema(
   { _id: false }
 );
 
-// cross-field sanity checks
+// ✅ Update pre-validation checks
 FieldSchema.pre("validate", function (next) {
+  // Skip validation for pageBreak fields
+  if (this.inputType === "pageBreak") {
+    this.dataType = "none"; // ✅ Force datatype to "none" automatically
+    return next();
+  }
+
   const needsOptions = ["select", "multiselect", "radio"].includes(this.inputType);
   if (needsOptions && (!this.options || this.options.length === 0)) {
     return next(new Error(`Field "${this.fieldName}" requires non-empty options for inputType ${this.inputType}`));
@@ -86,14 +94,12 @@ const UDFFormSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true, unique: true },
     description: { type: String, default: "" },
     fields: { type: [FieldSchema], default: [] },
-    // optional categorization
     category: { type: String, default: "default" },
     isArchived: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 
-// Export model + enums for reuse
 UDFFormSchema.statics.DATA_TYPES = DATA_TYPES;
 UDFFormSchema.statics.INPUT_TYPES = INPUT_TYPES;
 

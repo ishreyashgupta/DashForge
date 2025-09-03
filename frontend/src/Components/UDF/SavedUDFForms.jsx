@@ -3,10 +3,13 @@ import {
   getAllUDFForms,
   deleteUDFForm,
   updateUDFForm,
-  getUDFResponses, // ✅ now it exists
-} from "../../services/udfservice";import UDFFormRenderer from "./UDFFormRenderer";
-import DynamicResponsesViewer from "../../Components/UDF/DynamicReponsesViewer"; // ✅ Correct import
-import { submitUDFResponse } from "../../services/udfservice";
+  getUDFResponses,
+  submitUDFResponse 
+} from "../../services/udfservice";
+
+import UDFBuilder from "./UDFBuilder"; // ✅ Use the same builder for edit/create
+import UDFFormRenderer from "./UDFFormRenderer";
+import DynamicResponsesViewer from "../../Components/UDF/DynamicReponsesViewer";
 
 export default function SavedUDFForms() {
   const [forms, setForms] = useState([]);
@@ -33,6 +36,18 @@ export default function SavedUDFForms() {
     refresh();
   };
 
+const handleResponseSubmit = async (formId, responseData) => {
+  try {
+    await submitUDFResponse(formId, responseData);
+    alert("Response submitted successfully!");
+    setActiveForm(null);
+  } catch (err) {
+    alert("Error submitting response: " + err.message);
+  }
+};
+
+
+
   const handleOpenForm = (form) => {
     setActiveForm(form);
     setIsEditing(false);
@@ -43,16 +58,12 @@ export default function SavedUDFForms() {
     setIsEditing(true);
   };
 
-  const handleSubmit = async (values) => {
+  const handleSubmit = async (data) => {
     try {
       if (isEditing) {
-        await updateUDFForm(activeForm._id, { ...activeForm, ...values });
+        await updateUDFForm(activeForm._id, data);
         alert("Form updated successfully!");
-      } else {
-        await submitUDFResponse(activeForm._id, values);
-        alert("Form submitted successfully!");
       }
-
       setActiveForm(null);
       setIsEditing(false);
       refresh();
@@ -61,7 +72,6 @@ export default function SavedUDFForms() {
     }
   };
 
-  // Open dynamic response viewer
   const handleViewResponses = async (form) => {
     try {
       const data = await getUDFResponses(form._id);
@@ -74,13 +84,28 @@ export default function SavedUDFForms() {
 
   if (loading) return <div>Loading...</div>;
 
-  if (activeForm) {
+  // ✅ Use builder when editing existing forms
+  if (activeForm && isEditing) {
+    return (
+      <UDFBuilder
+        existingForm={activeForm}  // ✅ Pre-fill builder with form data
+        onSubmit={handleSubmit}
+        onCancel={() => {
+          setActiveForm(null);
+          setIsEditing(false);
+        }}
+      />
+    );
+  }
+
+  // ✅ Use form renderer when just filling data
+  if (activeForm && !isEditing) {
     return (
       <UDFFormRenderer
-        form={activeForm}
-        onSubmit={handleSubmit}
-        isEditing={isEditing}
-      />
+  form={activeForm}
+  onSubmit={(data) => handleResponseSubmit(activeForm._id, data)}  // ✅ Correct handler
+  isEditing={false}
+/>
     );
   }
 

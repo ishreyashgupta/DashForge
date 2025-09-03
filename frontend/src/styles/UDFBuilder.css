@@ -1,0 +1,197 @@
+/* =============================
+   UDF Builder Styles (Banking-Grade)
+   Author: Shreyash
+   ============================= */
+
+.udf-container {
+  max-width: 1100px;
+  margin: 20px auto;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.udf-header {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 16px;
+}
+
+.udf-sub-header {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 20px;
+}
+
+/* =============================
+   FORM INPUTS & TEXTAREAS
+   ============================= */
+.udf-input,
+.udf-textarea,
+.udf-select {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  transition: all 0.25s ease-in-out;
+  background-color: #fff;
+}
+
+.udf-input:focus,
+.udf-textarea:focus,
+.udf-select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+.udf-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* =============================
+   FIELD WRAPPER
+   ============================= */
+.udf-field-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: transform 0.15s ease-in-out;
+}
+
+.udf-field-card:hover {
+  transform: scale(1.01);
+  background-color: #fff;
+}
+
+/* =============================
+   GRID LAYOUTS
+   ============================= */
+.udf-grid-6 {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+
+.udf-grid-5 {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.udf-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+/* =============================
+   BUTTONS
+   ============================= */
+.udf-btn {
+  padding: 10px 16px;
+  font-size: 14px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  font-weight: 600;
+}
+
+.udf-btn-primary {
+  background-color: #2563eb;
+  color: white;
+}
+
+.udf-btn-primary:hover {
+  background-color: #1e3a8a;
+}
+
+.udf-btn-secondary {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.udf-btn-secondary:hover {
+  background-color: #e5e7eb;
+}
+
+.udf-btn-danger {
+  background-color: #dc2626;
+  color: #fff;
+}
+
+.udf-btn-danger:hover {
+  background-color: #b91c1c;
+}
+
+/* =============================
+   OPTION LISTS
+   ============================= */
+.udf-options-wrapper {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background-color: #f9fafb;
+}
+
+.udf-option-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+/* =============================
+   VALIDATION GRID
+   ============================= */
+.udf-validation-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+/* =============================
+   PREVIEW MODAL
+   ============================= */
+.udf-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.udf-modal-content {
+  background: #fff;
+  padding: 24px;
+  border-radius: 12px;
+  width: 95%;
+  max-width: 800px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.15);
+}
+
+/* =============================
+   STATUS & MESSAGES
+   ============================= */
+.udf-message {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #065f46;
+  font-weight: 500;
+}

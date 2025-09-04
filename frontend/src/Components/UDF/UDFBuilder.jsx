@@ -7,7 +7,7 @@ const emptyField = {
   label: "",
   dataType: "string",
   inputType: "text",
-  fieldType: "input",
+  fieldType: "input", // NEW: Used to distinguish inputs vs. structural items like page breaks
   placeholder: "",
   helpText: "",
   required: false,
@@ -110,12 +110,23 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
     try {
       const cleaned = fields.map((f) => {
         const v = { ...f };
+
+        // ✅ FIXED BUG: Prevent undefined -> NaN conversion
         if (v.validation) {
-          if (v.validation.min !== "") v.validation.min = Number(v.validation.min);
-          if (v.validation.max !== "") v.validation.max = Number(v.validation.max);
-          if (v.validation.minLength !== "") v.validation.minLength = Number(v.validation.minLength);
-          if (v.validation.maxLength !== "") v.validation.maxLength = Number(v.validation.maxLength);
+          if (v.validation.min !== "" && v.validation.min !== undefined && v.validation.min !== null) {
+            v.validation.min = Number(v.validation.min);
+          }
+          if (v.validation.max !== "" && v.validation.max !== undefined && v.validation.max !== null) {
+            v.validation.max = Number(v.validation.max);
+          }
+          if (v.validation.minLength !== "" && v.validation.minLength !== undefined && v.validation.minLength !== null) {
+            v.validation.minLength = Number(v.validation.minLength);
+          }
+          if (v.validation.maxLength !== "" && v.validation.maxLength !== undefined && v.validation.maxLength !== null) {
+            v.validation.maxLength = Number(v.validation.maxLength);
+          }
         }
+
         return v;
       });
 
@@ -144,16 +155,19 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: 16 }}>
       <h2>{existingForm ? "Edit UDF Form" : "Create UDF Form"}</h2>
 
+      {/* Form Name + Description */}
       <div style={{ display: "grid", gap: 12 }}>
         <input
           placeholder="Form name"
           value={name || ""}
           onChange={(e) => setName(e.target.value)}
+          style={{ padding: 8, border: "1px solid #ccc", borderRadius: 6 }}
         />
         <textarea
           placeholder="Description"
           value={description || ""}
           onChange={(e) => setDescription(e.target.value)}
+          style={{ padding: 8, border: "1px solid #ccc", borderRadius: 6 }}
         />
       </div>
 
@@ -166,7 +180,8 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
             borderRadius: 8,
             padding: 12,
             marginBottom: 12,
-            background: f.fieldType === "pageBreak" ? "#f8f9fa" : "transparent",
+            background: f.fieldType === "pageBreak" ? "#f8f9fa" : "white",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
           }}
         >
           {f.fieldType === "pageBreak" ? (
@@ -177,7 +192,7 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
+                gridTemplateColumns: "repeat(6, 1fr)",
                 gap: 12,
               }}
             >
@@ -242,47 +257,49 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
             </div>
           )}
 
-          {["select", "multiselect", "radio", "checkbox"].includes(f.inputType) && f.fieldType !== "pageBreak" && (
-            <div style={{ marginTop: 12 }}>
-              <strong>Options</strong>
-              <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
-                {(f.options || []).map((o, oIdx) => (
-                  <div
-                    key={oIdx}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr auto",
-                      gap: 8,
-                    }}
-                  >
-                    <input
-                      placeholder="Label"
-                      value={o.label || ""}
-                      onChange={(e) =>
-                        updateOption(idx, oIdx, { label: e.target.value })
-                      }
-                    />
-                    <input
-                      placeholder="Value"
-                      value={o.value || ""}
-                      onChange={(e) =>
-                        updateOption(idx, oIdx, { value: e.target.value })
-                      }
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeOption(idx, oIdx)}
+          {/* Options */}
+          {["select", "multiselect", "radio", "checkbox"].includes(f.inputType) &&
+            f.fieldType !== "pageBreak" && (
+              <div style={{ marginTop: 12 }}>
+                <strong>Options</strong>
+                <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                  {(f.options || []).map((o, oIdx) => (
+                    <div
+                      key={oIdx}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr auto",
+                        gap: 8,
+                      }}
                     >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-                <button type="button" onClick={() => addOption(idx)}>
-                  + Add Option
-                </button>
+                      <input
+                        placeholder="Label"
+                        value={o.label || ""}
+                        onChange={(e) =>
+                          updateOption(idx, oIdx, { label: e.target.value })
+                        }
+                      />
+                      <input
+                        placeholder="Value"
+                        value={o.value || ""}
+                        onChange={(e) =>
+                          updateOption(idx, oIdx, { value: e.target.value })
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeOption(idx, oIdx)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => addOption(idx)}>
+                    + Add Option
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
             <button type="button" onClick={() => removeField(idx)}>
@@ -292,6 +309,7 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
         </div>
       ))}
 
+      {/* Actions */}
       <div style={{ display: "flex", gap: 8 }}>
         <button type="button" onClick={addField}>
           + Add Field
@@ -314,6 +332,7 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
 
       {message && <p style={{ marginTop: 12 }}>{message}</p>}
 
+      {/* Preview */}
       {showPreview && (
         <div
           style={{
@@ -346,7 +365,6 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
               isEditing={false}
               previewMode={true}
               onSubmit={(data) => {
-                // callback when preview submit is pressed
                 console.log("Preview Submit:", data);
                 setShowPreview(false);
               }}

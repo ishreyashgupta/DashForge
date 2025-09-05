@@ -2,35 +2,32 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 
 export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false, previewMode = false }) {
   const containerRef = useRef(null);
-
   const fields = Array.isArray(form.fields) ? form.fields : [];
 
-  // 1) derive pages using fieldType === 'pageBreak' as separator (pageBreak items never render)
+  // 1) Group fields into pages using "pageBreak"
   const pages = useMemo(() => {
     const p = [[]];
     for (const f of fields) {
-      if (f && f.fieldType === "pageBreak") {
-        if (p[p.length - 1].length > 0) p.push([]); // only start a new page if current has items
-      } else {
-        if (f && f.visible !== false) p[p.length - 1].push(f); // only include visible fields in page UI
-        else if (f && f.visible === false) {
-          // invisible fields are not added to pages but still should keep values
-          // we intentionally do not push them into the UI pages
-        }
+      if (!f) continue;
+
+      // Treat pageBreak as a separator, not an input
+      if (f.fieldType === "pageBreak") {
+        if (p[p.length - 1].length > 0) p.push([]);
+      } else if (f.visible !== false) {
+        p[p.length - 1].push(f);
       }
     }
-    // filter out empty pages
     return p.filter((pg) => pg.length > 0);
   }, [fields]);
 
-  // 2) single form state for all fields (including invisible ones) — initialize using defaults
+  // 2) Form state for all fields (skip pageBreaks)
   const [formState, setFormState] = useState(() => {
     const s = {};
     for (const f of fields) {
-      // skip pageBreaks
-      if (f && f.fieldType === "pageBreak") continue;
+      if (!f || f.fieldType === "pageBreak") continue;
       const name = f.fieldName || f.label || "";
-      if (name === "") continue;
+      if (!name) continue;
+
       if (s[name] === undefined) {
         if (f.inputType === "checkbox") s[name] = !!f.defaultValue;
         else if (f.inputType === "multiselect") s[name] = Array.isArray(f.defaultValue) ? f.defaultValue : [];
@@ -40,7 +37,7 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
     return s;
   });
 
-  // keep formState in sync when form changes (but don't wipe values that user already filled)
+  // Keep state in sync when form updates
   useEffect(() => {
     setFormState((prev) => {
       const next = { ...prev };
@@ -48,6 +45,7 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
         if (!f || f.fieldType === "pageBreak") continue;
         const name = f.fieldName || f.label || "";
         if (!name) continue;
+
         if (next[name] === undefined) {
           if (f.inputType === "checkbox") next[name] = !!f.defaultValue;
           else if (f.inputType === "multiselect") next[name] = Array.isArray(f.defaultValue) ? f.defaultValue : [];
@@ -59,64 +57,51 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
   }, [fields]);
 
   const [pageIndex, setPageIndex] = useState(0);
-  const [errors, setErrors] = useState({}); // { [fieldName]: message }
+  const [errors, setErrors] = useState({});
 
-  // ensure pageIndex is clamped when pages change
   useEffect(() => {
     setPageIndex((p) => Math.min(p, Math.max(0, pages.length - 1)));
   }, [pages.length]);
 
-  // scroll to top of container when page changes
   useEffect(() => {
     if (containerRef.current) containerRef.current.scrollTop = 0;
   }, [pageIndex]);
 
-  // Validation helpers (current-page scoped)
+  // ----------------- VALIDATION -----------------
   function validateField(f, value) {
-    // return message string or null
-    if (!f) return null;
+    if (!f || f.fieldType === "pageBreak") return null;
+
     const label = f.label || f.fieldName || "Field";
-    // required
     if (f.required) {
       if (value === undefined || value === null) return `${label} is required`;
       if (typeof value === "string" && value.trim() === "") return `${label} is required`;
       if (Array.isArray(value) && value.length === 0) return `${label} is required`;
     }
 
-    // dataType sensitive checks (numeric/date are validated via min/max)
-    const v = value;
-
-    // min/max for number-like inputs
     if (f.validation) {
-      const vMin = f.validation.min;
-      const vMax = f.validation.max;
-      const minLength = f.validation.minLength;
-      const maxLength = f.validation.maxLength;
-      const pattern = f.validation.pattern;
+      const { min, max, minLength, maxLength, pattern } = f.validation;
 
-      // numeric checks when dataType indicates numeric or inputType === number
-      if ((f.dataType === "number" || f.inputType === "number") && v !== "" && v !== undefined && v !== null) {
-        const num = Number(v);
+      // Numeric checks
+      if ((f.dataType === "number" || f.inputType === "number") && value !== "" && value !== undefined && value !== null) {
+        const num = Number(value);
         if (!Number.isNaN(num)) {
-          if (vMin !== undefined && vMin !== null && vMin !== "" && num < Number(vMin)) return `${label} must be ≥ ${vMin}`;
-          if (vMax !== undefined && vMax !== null && vMax !== "" && num > Number(vMax)) return `${label} must be ≤ ${vMax}`;
+          if (min !== undefined && num < Number(min)) return `${label} must be ≥ ${min}`;
+          if (max !== undefined && num > Number(max)) return `${label} must be ≤ ${max}`;
         }
       }
 
-      // string/array length checks
-      if ((typeof v === "string" || Array.isArray(v))) {
-        if (minLength !== undefined && minLength !== null && minLength !== "" && v.length < Number(minLength)) return `${label} must have at least ${minLength} characters`;
-        if (maxLength !== undefined && maxLength !== null && maxLength !== "" && v.length > Number(maxLength)) return `${label} must have at most ${maxLength} characters`;
+      // Length checks
+      if (typeof value === "string" || Array.isArray(value)) {
+        if (minLength && value.length < Number(minLength)) return `${label} must have at least ${minLength} characters`;
+        if (maxLength && value.length > Number(maxLength)) return `${label} must have at most ${maxLength} characters`;
       }
 
-      // pattern
+      // Pattern checks
       if (pattern) {
         try {
           const re = new RegExp(pattern);
-          if (typeof v === "string" && v !== "" && !re.test(v)) return `${label} does not match required format`;
-        } catch (e) {
-          // invalid pattern supplied by builder — do not block user; skip pattern validation
-        }
+          if (typeof value === "string" && value !== "" && !re.test(value)) return `${label} does not match required format`;
+        } catch {}
       }
     }
 
@@ -126,7 +111,7 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
   function validatePage(pageFields) {
     const errs = {};
     for (const f of pageFields) {
-      if (!f) continue;
+      if (!f || f.fieldType === "pageBreak") continue;
       const name = f.fieldName || f.label;
       const val = formState[name];
       const msg = validateField(f, val);
@@ -139,10 +124,9 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
   const pageValidation = validatePage(currentPageFields);
   const isPageValid = Object.keys(pageValidation).length === 0;
 
-  // handlers
+  // ----------------- HANDLERS -----------------
   const handleChange = (name, value) => {
     setFormState((prev) => ({ ...prev, [name]: value }));
-    // clear existing error for the control
     setErrors((prev) => {
       const copy = { ...prev };
       delete copy[name];
@@ -153,17 +137,19 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
   const handleNext = () => {
     const errs = validatePage(currentPageFields);
     setErrors(errs);
-    if (Object.keys(errs).length === 0) setPageIndex((p) => Math.min(p + 1, pages.length - 1));
+    if (Object.keys(errs).length === 0) {
+      setPageIndex((p) => Math.min(p + 1, pages.length - 1));
+    }
   };
 
   const handleBack = () => setPageIndex((p) => Math.max(0, p - 1));
 
   const handleFinalSubmit = (e) => {
-    if (e && e.preventDefault) e.preventDefault();
+    if (e?.preventDefault) e.preventDefault();
     const errs = validatePage(currentPageFields);
     setErrors(errs);
+
     if (Object.keys(errs).length === 0) {
-      // produce payload of all non-pageBreak fields, preserving keys and values
       const payload = {};
       for (const f of fields) {
         if (!f || f.fieldType === "pageBreak") continue;
@@ -174,25 +160,24 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
     }
   };
 
-  // prevent Enter from submitting mid-wizard; on non-final pages, Enter acts like Next (if valid)
+  // Disable Enter key for multi-step navigation
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
-      // find if focus is inside a textarea — allow Enter there
       const active = document.activeElement;
       if (active && active.tagName === "TEXTAREA") return;
-      e.preventDefault();
+
       if (pageIndex < pages.length - 1) {
-        // attempt to go next if page valid
+        e.preventDefault();
+        e.stopPropagation();
         if (isPageValid) handleNext();
-      } else {
-        // final page — attempt submit if valid
-        if (isPageValid) handleFinalSubmit();
       }
     }
   };
 
-  // Render input control according to inputType
+  // ----------------- RENDER INPUTS -----------------
   function renderInput(f) {
+    if (f.fieldType === "pageBreak") return null;
+
     const name = f.fieldName || f.label || "";
     const val = formState[name];
     const sharedProps = {
@@ -211,9 +196,7 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
           <select {...sharedProps} value={val ?? ""}>
             <option value="">Select</option>
             {(f.options || []).map((o, i) => (
-              <option key={i} value={o.value}>
-                {o.label}
-              </option>
+              <option key={i} value={o.value}>{o.label}</option>
             ))}
           </select>
         );
@@ -224,12 +207,10 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
             value={Array.isArray(val) ? val : []}
             onChange={(e) => handleChange(name, Array.from(e.target.selectedOptions, (o) => o.value))}
             onKeyDown={handleKeyDown}
-            style={{ width: "100%", boxSizing: "border-box", padding: 8, borderRadius: 8, border: "1px solid #d0d0d0" }}
+            style={sharedProps.style}
           >
             {(f.options || []).map((o, i) => (
-              <option key={i} value={o.value}>
-                {o.label}
-              </option>
+              <option key={i} value={o.value}>{o.label}</option>
             ))}
           </select>
         );
@@ -238,13 +219,7 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
           <div>
             {(f.options || []).map((o, i) => (
               <label key={i} style={{ display: "block", marginBottom: 6 }}>
-                <input
-                  type="radio"
-                  name={name}
-                  value={o.value}
-                  checked={val === o.value}
-                  onChange={() => handleChange(name, o.value)}
-                />
+                <input type="radio" name={name} value={o.value} checked={val === o.value} onChange={() => handleChange(name, o.value)} />
                 <span style={{ marginLeft: 8 }}>{o.label}</span>
               </label>
             ))}
@@ -271,15 +246,13 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
             </div>
           );
         }
-        return (
-          <input type="checkbox" checked={!!val} onChange={(e) => handleChange(name, e.target.checked)} />
-        );
+        return <input type="checkbox" checked={!!val} onChange={(e) => handleChange(name, e.target.checked)} />;
       default:
         return <input {...sharedProps} type={f.inputType || "text"} placeholder={f.placeholder || ""} />;
     }
   }
 
-  // Styling helpers
+  // ----------------- RENDER UI -----------------
   const cardStyle = { background: "#fff", border: "1px solid #e6e6e6", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", borderRadius: 10, padding: 16 };
 
   return (
@@ -291,7 +264,6 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
             {form.description && <p style={{ margin: "8px 0", color: "#666" }}>{form.description}</p>}
           </div>
 
-          {/* Compact step indicator top-right */}
           {!isEditing && (
             <div style={{ color: "#555", fontSize: 13, marginTop: 6 }}>
               Step {pageIndex + 1} of {pages.length}
@@ -300,12 +272,13 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
         </div>
 
         {/* Fields container */}
-        <form onSubmit={handleFinalSubmit} onKeyDown={handleKeyDown} style={{ marginTop: 12 }}>
+        <form onSubmit={handleFinalSubmit} style={{ marginTop: 12 }} onKeyDown={handleKeyDown}>
           <div>
             {currentPageFields.length === 0 ? (
               <div style={{ color: "#888" }}>No fields on this page.</div>
             ) : (
               currentPageFields.map((f, idx) => {
+                if (f.fieldType === "pageBreak") return null;
                 const name = f.fieldName || f.label || `field_${idx}`;
                 return (
                   <div key={name} style={{ marginBottom: 12 }}>
@@ -313,11 +286,8 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
                       {f.label || name}
                       {f.required && <span style={{ color: "#d32f2f", marginLeft: 6 }}>*</span>}
                     </label>
-
                     {renderInput(f)}
-
                     {f.helpText && <div style={{ marginTop: 6, color: "#777", fontSize: 13 }}>{f.helpText}</div>}
-
                     {errors[name] && <div style={{ marginTop: 6, color: "#d32f2f", fontSize: 13 }}>{errors[name]}</div>}
                   </div>
                 );
@@ -325,7 +295,7 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
             )}
           </div>
 
-          {/* Bottom toolbar: right-aligned within same container */}
+          {/* Bottom toolbar */}
           {!isEditing && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16 }}>
               <div />
@@ -348,7 +318,6 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
                 ) : (
                   <button
                     type="submit"
-                    onClick={handleFinalSubmit}
                     disabled={!isPageValid}
                     style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: isPageValid ? "#1976d2" : "#e0e0e0", color: isPageValid ? "#fff" : "#888" }}
                   >
@@ -361,10 +330,8 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
         </form>
       </div>
 
-      {/* Editing UI stays the same as previous builder expectations (not implemented here) */}
       {isEditing && (
         <div style={{ marginTop: 12, color: "#666" }}>
-          {/* For editing mode the builder will supply the editing UI separately; we intentionally keep rendering minimal here. */}
           Editing mode — use Builder to modify fields.
         </div>
       )}

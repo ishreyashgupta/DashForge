@@ -7,7 +7,7 @@ const emptyField = {
   label: "",
   dataType: "string",
   inputType: "text",
-  fieldType: "input", // NEW: Used to distinguish inputs vs. structural items like page breaks
+  fieldType: "input", // "input" or "pageBreak"
   placeholder: "",
   helpText: "",
   required: false,
@@ -32,6 +32,7 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
   const [message, setMessage] = useState("");
   const [showPreview, setShowPreview] = useState(false);
 
+  // Load existing form when editing
   useEffect(() => {
     if (existingForm) {
       setName(existingForm.name || "");
@@ -41,6 +42,7 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
           ? existingForm.fields.map((f) => ({
               ...emptyField,
               ...f,
+              fieldType: f.fieldType || "input", // ✅ Preserve fieldType explicitly
               options: Array.isArray(f.options) ? f.options : [],
               validation: { ...emptyField.validation, ...(f.validation || {}) },
             }))
@@ -49,20 +51,22 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
     }
   }, [existingForm]);
 
+  // Fetch input types + data types from server
   useEffect(() => {
-    getMeta()
-      .then(setMeta)
-      .catch(console.error);
+    getMeta().then(setMeta).catch(console.error);
   }, []);
 
+  // Update field values
   const updateField = (idx, patch) => {
     setFields((prev) =>
       prev.map((f, i) => (i === idx ? { ...f, ...patch } : f))
     );
   };
 
+  // Add new input field
   const addField = () => setFields((prev) => [...prev, { ...emptyField }]);
 
+  // Add page break
   const addPageBreak = () => {
     setFields((prev) => [
       ...prev,
@@ -70,9 +74,8 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
         ...emptyField,
         fieldName: `page_break_${prev.length + 1}`,
         label: "Page Break",
-        fieldType: "pageBreak",
-        inputType: "pageBreak",
-        dataType: "none",
+        fieldType: "pageBreak", // ✅ Correctly set fieldType
+
         options: [],
         required: false,
         defaultValue: "",
@@ -80,8 +83,10 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
     ]);
   };
 
+  // Remove a field or page break
   const removeField = (idx) => setFields((prev) => prev.filter((_, i) => i !== idx));
 
+  // Add option for select/radio/checkbox
   const addOption = (idx) => {
     const f = fields[idx];
     updateField(idx, {
@@ -89,6 +94,7 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
     });
   };
 
+  // Update option values
   const updateOption = (fIdx, oIdx, patch) => {
     const f = fields[fIdx];
     const opts = (f.options || []).map((o, i) =>
@@ -97,12 +103,14 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
     updateField(fIdx, { options: opts });
   };
 
+  // Remove option
   const removeOption = (fIdx, oIdx) => {
     const f = fields[fIdx];
     const opts = (f.options || []).filter((_, i) => i !== oIdx);
     updateField(fIdx, { options: opts });
   };
 
+  // Save UDF Form
   const onSave = async () => {
     setSaving(true);
     setMessage("");
@@ -111,20 +119,19 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
       const cleaned = fields.map((f) => {
         const v = { ...f };
 
-        // ✅ FIXED BUG: Prevent undefined -> NaN conversion
+        // ✅ Skip validation cleanup for pageBreak fields
+        if (v.fieldType === "pageBreak") {
+          v.validation = {};
+          return v;
+        }
+
+        // ✅ Handle numeric validation only for input fields
         if (v.validation) {
-          if (v.validation.min !== "" && v.validation.min !== undefined && v.validation.min !== null) {
-            v.validation.min = Number(v.validation.min);
-          }
-          if (v.validation.max !== "" && v.validation.max !== undefined && v.validation.max !== null) {
-            v.validation.max = Number(v.validation.max);
-          }
-          if (v.validation.minLength !== "" && v.validation.minLength !== undefined && v.validation.minLength !== null) {
-            v.validation.minLength = Number(v.validation.minLength);
-          }
-          if (v.validation.maxLength !== "" && v.validation.maxLength !== undefined && v.validation.maxLength !== null) {
-            v.validation.maxLength = Number(v.validation.maxLength);
-          }
+          ["min", "max", "minLength", "maxLength"].forEach((key) => {
+            if (v.validation[key] !== "" && v.validation[key] !== undefined && v.validation[key] !== null) {
+              v.validation[key] = Number(v.validation[key]);
+            }
+          });
         }
 
         return v;
@@ -189,121 +196,113 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
               --- Page Break ---
             </div>
           ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(6, 1fr)",
-                gap: 12,
-              }}
-            >
-              <input
-                placeholder="Field name"
-                value={f.fieldName || ""}
-                onChange={(e) => updateField(idx, { fieldName: e.target.value })}
-              />
-              <input
-                placeholder="Label"
-                value={f.label || ""}
-                onChange={(e) => updateField(idx, { label: e.target.value })}
-              />
-              <select
-                value={f.dataType || "string"}
-                onChange={(e) => updateField(idx, { dataType: e.target.value })}
+            <>
+              {/* Normal Input Fields */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(6, 1fr)",
+                  gap: 12,
+                }}
               >
-                {meta.dataTypes.length > 0 ? (
-                  meta.dataTypes.map((dt) => (
-                    <option key={dt} value={dt}>
-                      {dt}
-                    </option>
-                  ))
-                ) : (
-                  <option value="string">string</option>
-                )}
-              </select>
-              <select
-                value={f.inputType || "text"}
-                onChange={(e) => updateField(idx, { inputType: e.target.value })}
-              >
-                {meta.inputTypes.length > 0 ? (
-                  meta.inputTypes.map((it) => (
-                    <option key={it} value={it}>
-                      {it}
-                    </option>
-                  ))
-                ) : (
-                  <option value="text">text</option>
-                )}
-              </select>
-              <label>
                 <input
-                  type="checkbox"
-                  checked={!!f.visible}
-                  onChange={(e) =>
-                    updateField(idx, { visible: e.target.checked })
-                  }
-                />{" "}
-                Visible
-              </label>
-              <label>
+                  placeholder="Field name"
+                  value={f.fieldName || ""}
+                  onChange={(e) => updateField(idx, { fieldName: e.target.value })}
+                />
                 <input
-                  type="checkbox"
-                  checked={!!f.required}
-                  onChange={(e) =>
-                    updateField(idx, { required: e.target.checked })
-                  }
-                />{" "}
-                Required
-              </label>
-            </div>
+                  placeholder="Label"
+                  value={f.label || ""}
+                  onChange={(e) => updateField(idx, { label: e.target.value })}
+                />
+                <select
+                  value={f.dataType || "string"}
+                  onChange={(e) => updateField(idx, { dataType: e.target.value })}
+                >
+                  {meta.dataTypes.length > 0 ? (
+                    meta.dataTypes.map((dt) => (
+                      <option key={dt} value={dt}>
+                        {dt}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="string">string</option>
+                  )}
+                </select>
+                <select
+                  value={f.inputType || "text"}
+                  onChange={(e) => updateField(idx, { inputType: e.target.value })}
+                >
+                  {meta.inputTypes.length > 0 ? (
+                    meta.inputTypes.map((it) => (
+                      <option key={it} value={it}>
+                        {it}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="text">text</option>
+                  )}
+                </select>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={!!f.visible}
+                    onChange={(e) => updateField(idx, { visible: e.target.checked })}
+                  />{" "}
+                  Visible
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={!!f.required}
+                    onChange={(e) => updateField(idx, { required: e.target.checked })}
+                  />{" "}
+                  Required
+                </label>
+              </div>
+
+              {/* Options */}
+              {["select", "multiselect", "radio", "checkbox"].includes(f.inputType) && (
+                <div style={{ marginTop: 12 }}>
+                  <strong>Options</strong>
+                  <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                    {(f.options || []).map((o, oIdx) => (
+                      <div
+                        key={oIdx}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr auto",
+                          gap: 8,
+                        }}
+                      >
+                        <input
+                          placeholder="Label"
+                          value={o.label || ""}
+                          onChange={(e) => updateOption(idx, oIdx, { label: e.target.value })}
+                        />
+                        <input
+                          placeholder="Value"
+                          value={o.value || ""}
+                          onChange={(e) => updateOption(idx, oIdx, { value: e.target.value })}
+                        />
+                        <button type="button" onClick={() => removeOption(idx, oIdx)}>
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <button type="button" onClick={() => addOption(idx)}>
+                      + Add Option
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
-          {/* Options */}
-          {["select", "multiselect", "radio", "checkbox"].includes(f.inputType) &&
-            f.fieldType !== "pageBreak" && (
-              <div style={{ marginTop: 12 }}>
-                <strong>Options</strong>
-                <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
-                  {(f.options || []).map((o, oIdx) => (
-                    <div
-                      key={oIdx}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr auto",
-                        gap: 8,
-                      }}
-                    >
-                      <input
-                        placeholder="Label"
-                        value={o.label || ""}
-                        onChange={(e) =>
-                          updateOption(idx, oIdx, { label: e.target.value })
-                        }
-                      />
-                      <input
-                        placeholder="Value"
-                        value={o.value || ""}
-                        onChange={(e) =>
-                          updateOption(idx, oIdx, { value: e.target.value })
-                        }
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeOption(idx, oIdx)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                  <button type="button" onClick={() => addOption(idx)}>
-                    + Add Option
-                  </button>
-                </div>
-              </div>
-            )}
-
+          {/* Remove Button */}
           <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
             <button type="button" onClick={() => removeField(idx)}>
-              Remove Field
+              Remove {f.fieldType === "pageBreak" ? "Page Break" : "Field"}
             </button>
           </div>
         </div>
@@ -344,9 +343,7 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
             justifyContent: "center",
             zIndex: 1000,
           }}
-          onClick={(e) =>
-            e.target === e.currentTarget && setShowPreview(false)
-          }
+          onClick={(e) => e.target === e.currentTarget && setShowPreview(false)}
         >
           <div
             style={{

@@ -3,7 +3,6 @@ import React, { Suspense, lazy } from "react";
 
 const UserDashboard = lazy(() => import("../Pages/UserDashboard"));
 const PersonalForm = lazy(() => import("../Components/PersonalForm"));
-const UDFFormRenderer = lazy(() => import("../components/admin/udf/UDFFormRenderer"));
 
 export default function UserRoutes() {
   return (

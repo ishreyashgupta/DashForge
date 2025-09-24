@@ -2,23 +2,74 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
 
-// styles
-import "../../styles/Form.css";
+// Material-UI imports
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Container,
+  TextField,
+  Typography,
+  Link as MuiLink,
+  Alert,
+  CircularProgress,
+  InputAdornment,
+  IconButton,
+} from '@mui/material';
+import {
+  Visibility,
+  VisibilityOff,
+  Email,
+  Lock,
+} from '@mui/icons-material';
 
 function LoginForm() {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const navigate = useNavigate();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Clear error when user starts typing
+    if (errors[e.target.name]) {
+      setErrors({ ...errors, [e.target.name]: '' });
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email is invalid';
+    }
+    
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const response = await fetch("http://localhost:5000/api/auth/login", {
@@ -53,50 +104,129 @@ function LoginForm() {
     } catch (error) {
       console.error("❌ Fetch error during login:", error);
       toast.error("Something went wrong during login.");
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleClickShowPassword = () => {
+    setShowPassword(!showPassword);
+  };
+
   return (
-    <div className="login-container">
-      <form
-        onSubmit={handleSubmit}
-        className="p-4 border rounded shadow bg-white"
-        style={{ maxWidth: "400px", margin: "auto", marginTop: "100px" }}
-      >
-        <h2 className="mb-3">Login</h2>
+    <Container maxWidth="sm" sx={{ mt: 8 }}>
+      <Card elevation={3} sx={{ borderRadius: 2 }}>
+        <CardContent sx={{ p: 4 }}>
+          {/* Logo/Brand */}
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <Typography 
+              variant="h4" 
+              component="h1" 
+              gutterBottom
+              sx={{ fontWeight: 'bold', color: 'primary.main' }}
+            >
+              Welcome Back
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Sign in to your account
+            </Typography>
+          </Box>
 
-        <input
-          type="email"
-          name="email"
-          placeholder="Email"
-          value={formData.email}
-          onChange={handleChange}
-          className="form-control mb-3"
-          required
-        />
+          {/* Login Form */}
+          <Box component="form" onSubmit={handleSubmit} noValidate>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="email"
+              label="Email Address"
+              name="email"
+              autoComplete="email"
+              autoFocus
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              error={!!errors.email}
+              helperText={errors.email}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Email color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            />
 
-        <input
-          type="password"
-          name="password"
-          placeholder="Password"
-          value={formData.password}
-          onChange={handleChange}
-          className="form-control mb-3"
-          required
-        />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="password"
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              id="password"
+              autoComplete="current-password"
+              value={formData.password}
+              onChange={handleChange}
+              error={!!errors.password}
+              helperText={errors.password}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Lock color="action" />
+                  </InputAdornment>
+                ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={handleClickShowPassword}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
 
-        <p className="mt-3 text-center">
-          Don’t have an account?{" "}
-          <Link to="/register" className="text-primary" style={{ cursor: "pointer" }}>
-            Register
-          </Link>
-        </p>
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              disabled={loading}
+              sx={{ 
+                mt: 3, 
+                mb: 2, 
+                py: 1.2,
+                fontSize: '1.1rem',
+                position: 'relative'
+              }}
+            >
+              {loading ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                'Sign In'
+              )}
+            </Button>
 
-        <button type="submit" className="btn btn-primary w-100">
-          Login
-        </button>
-      </form>
-    </div>
+            {/* Register Link */}
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="body2">
+                Don't have an account?{' '}
+                <MuiLink 
+                  component={Link} 
+                  to="/register" 
+                  sx={{ textDecoration: 'none' }}
+                >
+                  Sign Up
+                </MuiLink>
+              </Typography>
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
+    </Container>
   );
 }
 

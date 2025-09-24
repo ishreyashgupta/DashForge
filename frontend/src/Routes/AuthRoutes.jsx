@@ -1,14 +1,14 @@
+import React, { lazy } from "react";
 import { Routes, Route } from "react-router-dom";
-import React, { Suspense, lazy } from "react";
 
-const LoginPage = lazy(() => import("../pages/LoginPage"));
-const RegisterPage = lazy(() => import("../pages/RegisterPage"));
+const LoginPage = lazy(() => import("../Pages/LoginPage"));
+const RegisterPage = lazy(() => import("../Pages/RegisterPage"));
 
 export default function AuthRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      <Route path="login" element={<LoginPage />} />
+      <Route path ="register" element ={<RegisterPage/>} />
     </Routes>
   );
 }

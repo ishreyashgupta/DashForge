@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import "../../styles/Form.css";
+import "../styles/Form.css"
 
 function RegisterForm() {
   const navigate = useNavigate(); 

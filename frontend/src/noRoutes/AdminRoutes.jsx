@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
 
-const AdminDashboard = lazy(() => import("../Pages/AdminDashboard"));
+const AdminDashboard = lazy(() => import("../Pages/Admin/Dashboard/AdminDashboard"));
 const UDFBuilder = lazy(() => import("../components/admin/udf/UDFBuilder"));
 const SavedUDFForms = lazy(() => import("../components/admin/udf/SavedUDFForms"));
 

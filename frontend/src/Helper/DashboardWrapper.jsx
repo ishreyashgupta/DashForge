@@ -1,7 +1,7 @@
 import React from "react";
 import useAuth from "../hooks/useAuth";
-import UserDashboard from "./UserDashboard";
-import AdminDashboard from "./AdminDashboard";
+import UserDashboard from "../Pages/User/Dashboard/UserDashboard";
+import AdminDashboard from "../Pages/Admin/Dashboard/AdminDashboard";
 
 export default function DashboardWrapper() {
   const { role } = useAuth();

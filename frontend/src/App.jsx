@@ -4,16 +4,16 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // UDF components (critical, so not lazy-loaded)
-import UDFFormRenderer from "./Components/UDF/UDFFormRenderer";
-import SavedUDFForms from "./Components/UDF/SavedUDFForms";
+import UDFFormRenderer from "././Pages/Admin/Dashboard/UDF/UDFFormRenderer";
+import SavedUDFForms from "././Pages/Admin/Dashboard/UDF/SavedUDFForms";
 
 // Lazy-loaded components
-const PersonalForm = lazy(() => import("./Components/PersonalForm"));
-const DashboardWrapper = lazy(() => import("./Components/DashboardWrapper")); // 👈 wrapper
+const PersonalForm = lazy(() => import("././Pages/User/Dashboard/PersonalForm"));
+const DashboardWrapper = lazy(() => import("./Helper/DashboardWrapper")); // 👈 wrapper
 const LoginForm = lazy(() => import("./Components/LoginForm"));
-const RegisterForm = lazy(() => import("./Components/RegisterForm"));
-const Layout = lazy(() => import("./Components/Layout"));
-const UDFBuilder = lazy(() => import("./Components/UDF/UDFBuilder"));
+const RegisterForm = lazy(() => import("././Pages/RegisterPage/RegisterPage"));
+const Layout = lazy(() => import("./Components/Common/Layout"));
+const UDFBuilder = lazy(() => import("././Pages/Admin/Dashboard/UDF/UDFBuilder"));
 
 // Wrapper for form renderer with dynamic :formId param
 function UDFFormRendererWrapper() {

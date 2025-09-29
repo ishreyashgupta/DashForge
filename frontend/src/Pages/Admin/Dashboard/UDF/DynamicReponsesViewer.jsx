@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getUDFResponses } from "../../services/udfservice";
+import { getUDFResponses } from "../../../../services/udfservice";
 
 export default function DynamicResponsesViewer({ form, formId, onClose }) {
   const [responses, setResponses] = useState([]);
@@ -17,7 +17,8 @@ export default function DynamicResponsesViewer({ form, formId, onClose }) {
   const columns = useMemo(() => {
     // Collect all keys present across responses
     const keysInData = new Set();
-    responses.forEach((r) => {
+    responses.forEach((r) => {0.
+      .0
       const data = r?.data || {};
       Object.keys(data).forEach((k) => keysInData.add(k));
     });

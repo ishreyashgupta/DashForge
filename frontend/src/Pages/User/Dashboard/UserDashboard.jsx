@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useAuth from "../../../hooks/useAuth";
-import ViewFormModal from "../../../components/ViewFormModal";
+import ViewFormModal from "./ViewFormModal";
 
 // --- MUI Imports ---
 import {

@@ -5,11 +5,11 @@ import {
   updateUDFForm,
   getUDFResponses,
   submitUDFResponse 
-} from "../../services/udfservice";
+} from "../../../../services/udfservice";
 
 import UDFBuilder from "./UDFBuilder"; // ✅ Use the same builder for edit/create
 import UDFFormRenderer from "./UDFFormRenderer";
-import DynamicResponsesViewer from "../../Components/UDF/DynamicReponsesViewer";
+import DynamicResponsesViewer from "./DynamicReponsesViewer";
 
 export default function SavedUDFForms() {
   const [forms, setForms] = useState([]);

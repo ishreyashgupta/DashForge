@@ -8,18 +8,18 @@ import {
 import { useNavigate } from "react-router-dom";
 
 // services
-import { getAllForms, deleteFormByFormId } from "../../services/adminService";
+import { getAllForms, deleteFormByFormId } from "../../../services/adminService";
 
 // styles
-import "../../styles/AdminDashboard.css";
+import "../../../styles/AdminDashboard.css";
 
 // hooks
-import useAuth from "../../hooks/useAuth";
+import useAuth from "../../../hooks/useAuth";
 
 // components
-import ViewFormModal from "../../components/admin/ViewFormModal";
-import UDFBuilder from "../../components/admin/udf/UDFBuilder";
-import SavedUDFForms from "../../components/admin/udf/SavedUDFForms";
+import ViewFormModal from "./../../User/Dashboard/ViewFormModal";
+import UDFBuilder from "./UDF/UDFBuilder";
+import SavedUDFForms from "./UDF/SavedUDFForms";
 
 const AdminDashboard = () => {
   const [forms, setForms] = useState([]);

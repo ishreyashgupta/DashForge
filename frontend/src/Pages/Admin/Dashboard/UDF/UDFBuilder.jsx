@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { createUDFForm, updateUDFForm, getMeta } from "../../services/udfservice";
+import { createUDFForm, updateUDFForm, getMeta } from "../../../../services/udfservice";
 import UDFFormRenderer from "./UDFFormRenderer";
 
 const emptyField = {

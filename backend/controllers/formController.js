@@ -51,7 +51,12 @@ exports.updateForm = async (req, res) => {
 // ✅ Delete a user's form
 exports.deleteForm = async (req, res) => {
   try {
-    await FormData.deleteOne({ userId: req.user._id });
+    const result = await FormData.deleteOne({ userId: req.user._id });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ success: false, message: "Form not found to delete" });
+    }
+
     res.json({ success: true, message: "Form deleted successfully" });
   } catch (err) {
     console.error("Form Delete Error:", err);

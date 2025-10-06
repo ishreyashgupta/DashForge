@@ -10,7 +10,7 @@ const udfRoutes = require("./routes/udfRoutes");
 const responseRoutes = require("./routes/ResponseRoutes");
 const mailRoutes = require("./routes/mailRoutes");
 const assignmentRoutes = require("./routes/assigmentRoutes");
-
+const userRoutes = require("./routes/userRoutes")
 const app = express();
 connectDB();
 
@@ -24,6 +24,7 @@ app.use("/api/udf", udfRoutes);
 app.use("/api/responses", responseRoutes); // For saving & fetching responses
 app.use("/api/assignments", assignmentRoutes);
 app.use("/api/mail", mailRoutes);
+app.use("/api/user", userRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

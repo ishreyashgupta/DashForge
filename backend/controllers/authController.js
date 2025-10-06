@@ -7,7 +7,6 @@ const FormData = require("../models/FormData");
 exports.register = async (req, res) => {
   const { name, email, password, role, adminKey } = req.body;
      console.log("adminKey from client:", adminKey);
-     console.log("ADMIN_SECRET from env:", process.env.ADMIN_SECRET);
   try {
     const userExists = await User.findOne({ email });
     if (userExists)
@@ -71,6 +70,7 @@ exports.login = async (req, res) => {
         id: user._id,
       },
     });
+  console.log("User logged in:", token);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

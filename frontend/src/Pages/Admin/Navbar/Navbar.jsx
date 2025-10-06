@@ -1,35 +1,54 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import useAuth from "../hooks/useAuth"; // ✅ Use your hook
-import "../styles/Navbar.css";
+import useAuth from "../hooks/useAuth";
+import { AppBar, Toolbar, Typography, Button, Stack } from "@mui/material";
 
 function Navbar() {
-  const { token, role } = useAuth(); // ✅ Pull from localStorage
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { token, role, logout } = useAuth(); // Added logout function
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    if (token) {
-      setIsLoggedIn(true);
-      setIsAdmin(role === "admin");
-    } else {
-      setIsLoggedIn(false);
-      setIsAdmin(false);
-    }
+    setIsLoggedIn(!!token);
+    setIsAdmin(role === "admin");
   }, [token, role]);
 
   return (
-    <>
-      <h2 className="Logo" style={{ textAlign: "center" }}>MERN Auth App</h2>
-      <nav className="navbar">
-        <ul>
-          <li><Link to="/">Home</Link></li>
-          {isLoggedIn && <li><Link to="/dashboard">Dashboard</Link></li>}
-          {isLoggedIn && <li><Link to="/form">Form</Link></li>}
-          {isAdmin && <li><Link to="/admin-dashboard">Admin Panel</Link></li>}
-        </ul>
-      </nav>
-    </>
+    <AppBar position="static" color="default" sx={{ boxShadow: 1 }}>
+      <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
+        {/* Logo */}
+        <Typography 
+          variant="h6" 
+          component={Link} 
+          to="/" 
+          sx={{ textDecoration: "none", color: "inherit" }}
+        >
+          FormFlow
+        </Typography>
+
+        {/* Center Links */}
+        <Stack direction="row" spacing={2}>
+          {isLoggedIn && <Button component={Link} to="/dashboard">Dashboard</Button>}
+          {isLoggedIn && <Button component={Link} to="/form">Form</Button>}
+          {isAdmin && <Button component={Link} to="/admin-dashboard">Admin Panel</Button>}
+        </Stack>
+
+        {/* Right Profile/User Links + Logout */}
+        {isLoggedIn && (
+          <Stack direction="row" spacing={2}>
+            <Button component={Link} to="/profile">Profile</Button>
+            <Button component={Link} to="/user">User</Button>
+            <Button 
+              color="error" 
+              variant="contained" 
+              onClick={logout} 
+            >
+              Logout
+            </Button>
+          </Stack>
+        )}
+      </Toolbar>
+    </AppBar>
   );
 }
 

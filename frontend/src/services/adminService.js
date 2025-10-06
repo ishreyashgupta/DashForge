@@ -1,4 +1,5 @@
 const API = "http://localhost:5000/api/admin";
+import axios from "axios";
 
 export const getAllForms = async (token) => {
   const res = await fetch(`${API}/forms`, {
@@ -50,4 +51,25 @@ export const deleteFormByFormId = async (formId, token) => {
   if (!res.ok) throw new Error("Failed to delete form");
 
   return res.json();
+};
+
+
+// Assign Form to User
+export const assignFormToUser = async (formId, userId, token) => {
+  const res = await axios.post(
+    `${API}/forms/${formId}/assign`, // ✅ use API, not API_URL
+    { userId },
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
+  return res.data;
+};
+
+// Get All Users
+export const getAllUsers = async (token) => {
+  const res = await axios.get(`${API}/users`, { // ✅ use API
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
 };

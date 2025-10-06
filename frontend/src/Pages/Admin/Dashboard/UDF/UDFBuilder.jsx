@@ -1,13 +1,35 @@
-import React, { useEffect, useState } from "react";
-import { createUDFForm, updateUDFForm, getMeta } from "../../../../services/udfservice";
+import React, { useState, useEffect } from "react";
+import {
+  Box,
+  Button,
+  TextField,
+  Typography,
+  Select,
+  MenuItem,
+  Checkbox,
+  FormControlLabel,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Paper,
+  Stack,
+} from "@mui/material";
+import { ArrowUpward, ArrowDownward, Delete, AddCircleOutline } from "@mui/icons-material";
+import { getMeta, createUDFForm, updateUDFForm } from "../../../../services/udfservice";
 import UDFFormRenderer from "./UDFFormRenderer";
 
-const emptyField = {
+// Unique ID helper
+const genId = () => Math.random().toString(36).slice(2);
+
+// The best-practice field structure
+const emptyField = () => ({
+  id: genId(),
   fieldName: "",
   label: "",
-  dataType: "string",
-  inputType: "text",
-  fieldType: "input", // "input" or "pageBreak"
+  inputType: "text", // Only one selector: inputType
+  fieldType: "input",
   placeholder: "",
   helpText: "",
   required: false,
@@ -21,122 +43,111 @@ const emptyField = {
     pattern: "",
   },
   visible: true,
-};
+});
 
-export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
+const INPUT_TYPES = [
+  { value: "text", label: "Text" },
+  { value: "number", label: "Number" },
+  { value: "email", label: "Email" },
+  { value: "date", label: "Date" },
+  { value: "select", label: "Dropdown" },
+  { value: "checkbox", label: "Checkbox" },
+  { value: "radio", label: "Radio" },
+  { value: "multiselect", label: "Multi Select" },
+  { value: "textarea", label: "Textarea" },
+  { value: "file", label: "File Upload" },
+];
+
+export default function FormBuilderMUI({ existingForm, onSubmit, onCancel }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [fields, setFields] = useState([{ ...emptyField }]);
-  const [meta, setMeta] = useState({ dataTypes: [], inputTypes: [] });
+  const [fields, setFields] = useState([emptyField()]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
+  const [error, setError] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
-  // Load existing form when editing
   useEffect(() => {
     if (existingForm) {
       setName(existingForm.name || "");
       setDescription(existingForm.description || "");
       setFields(
-        existingForm.fields?.length > 0
-          ? existingForm.fields.map((f) => ({
-              ...emptyField,
+        existingForm.fields?.length
+          ? existingForm.fields.map(f => ({
+              ...emptyField(),
               ...f,
-              fieldType: f.fieldType || "input", // ✅ Preserve fieldType explicitly
+              id: genId(),
+              validation: { ...emptyField().validation, ...(f.validation || {}) },
               options: Array.isArray(f.options) ? f.options : [],
-              validation: { ...emptyField.validation, ...(f.validation || {}) },
             }))
-          : [{ ...emptyField }]
+          : [emptyField()]
       );
     }
   }, [existingForm]);
 
-  // Fetch input types + data types from server
-  useEffect(() => {
-    getMeta().then(setMeta).catch(console.error);
-  }, []);
+  // Field helpers
+  const updateField = (id, patch) =>
+    setFields(flds => flds.map(f => {
+      // If inputType changes, clear options for non-option types
+      if (patch.inputType && !["select", "multiselect", "radio", "checkbox"].includes(patch.inputType)) {
+        return { ...f, ...patch, options: [] };
+      }
+      return f.id === id ? { ...f, ...patch } : f;
+    }));
 
-  // Update field values
-  const updateField = (idx, patch) => {
-    setFields((prev) =>
-      prev.map((f, i) => (i === idx ? { ...f, ...patch } : f))
-    );
+  const addField = () => setFields(flds => [...flds, emptyField()]);
+  const addPageBreak = () => setFields(flds => [
+    ...flds,
+    { ...emptyField(), id: genId(), fieldType: "pageBreak", fieldName: `page_break_${flds.length + 1}`, label: "Page Break" }
+  ]);
+  const removeField = (id) => setFields(flds => flds.length > 1 ? flds.filter(f => f.id !== id) : flds);
+
+  // Option helpers
+  const addOption = (id) =>
+    updateField(id, { options: [...fields.find(f => f.id === id).options, { label: "", value: "" }] });
+  const updateOption = (fid, oid, patch) => {
+    const field = fields.find(f => f.id === fid);
+    const options = field.options.map((o, i) => (i === oid ? { ...o, ...patch } : o));
+    updateField(fid, { options });
+  };
+  const removeOption = (fid, oid) => {
+    const field = fields.find(f => f.id === fid);
+    const options = field.options.filter((_, i) => i !== oid);
+    updateField(fid, { options });
   };
 
-  // Add new input field
-  const addField = () => setFields((prev) => [...prev, { ...emptyField }]);
-
-  // Add page break
-  const addPageBreak = () => {
-    setFields((prev) => [
-      ...prev,
-      {
-        ...emptyField,
-        fieldName: `page_break_${prev.length + 1}`,
-        label: "Page Break",
-        fieldType: "pageBreak", // ✅ Correctly set fieldType
-
-        options: [],
-        required: false,
-        defaultValue: "",
-      },
-    ]);
-  };
-
-  // Remove a field or page break
-  const removeField = (idx) => setFields((prev) => prev.filter((_, i) => i !== idx));
-
-  // Add option for select/radio/checkbox
-  const addOption = (idx) => {
-    const f = fields[idx];
-    updateField(idx, {
-      options: [...(f.options || []), { label: "", value: "" }],
+  // Move fields
+  const moveField = (fromIdx, toIdx) => {
+    setFields(flds => {
+      const arr = [...flds];
+      const [moved] = arr.splice(fromIdx, 1);
+      arr.splice(toIdx, 0, moved);
+      return arr;
     });
   };
 
-  // Update option values
-  const updateOption = (fIdx, oIdx, patch) => {
-    const f = fields[fIdx];
-    const opts = (f.options || []).map((o, i) =>
-      i === oIdx ? { ...o, ...patch } : o
-    );
-    updateField(fIdx, { options: opts });
+  // Validation
+  const validateForm = () => {
+    if (!name.trim()) return "Form name required";
+    for (const f of fields)
+      if (f.fieldType === "input" && !f.fieldName.trim()) return "Each input needs a name";
+    return "";
   };
 
-  // Remove option
-  const removeOption = (fIdx, oIdx) => {
-    const f = fields[fIdx];
-    const opts = (f.options || []).filter((_, i) => i !== oIdx);
-    updateField(fIdx, { options: opts });
-  };
-
-  // Save UDF Form
+  // Save
   const onSave = async () => {
-    setSaving(true);
-    setMessage("");
-
+    setError(""); setMessage(""); setSaving(true);
+    const errMsg = validateForm();
+    if (errMsg) { setError(errMsg); setSaving(false); return; }
     try {
-      const cleaned = fields.map((f) => {
+      const cleaned = fields.map(f => {
         const v = { ...f };
-
-        // ✅ Skip validation cleanup for pageBreak fields
-        if (v.fieldType === "pageBreak") {
-          v.validation = {};
-          return v;
-        }
-
-        // ✅ Handle numeric validation only for input fields
-        if (v.validation) {
-          ["min", "max", "minLength", "maxLength"].forEach((key) => {
-            if (v.validation[key] !== "" && v.validation[key] !== undefined && v.validation[key] !== null) {
-              v.validation[key] = Number(v.validation[key]);
-            }
-          });
-        }
-
+        delete v.id;
+        if (v.fieldType === "pageBreak") v.validation = {};
+        if (!["select", "multiselect", "radio", "checkbox"].includes(v.inputType)) v.options = [];
+        if (v.validation) ["min", "max", "minLength", "maxLength"].forEach(key => v.validation[key] = v.validation[key] !== "" ? Number(v.validation[key]) : undefined);
         return v;
       });
-
       const payload = { name, description, fields: cleaned };
       let res;
       if (existingForm) {
@@ -145,236 +156,219 @@ export default function UDFBuilder({ existingForm, onSubmit, onCancel }) {
       } else {
         res = await createUDFForm(payload);
         setMessage(`Saved form: ${res.name}`);
-        setName("");
-        setDescription("");
-        setFields([{ ...emptyField }]);
+        setName(""); setDescription(""); setFields([emptyField()]);
       }
-
       if (onSubmit) onSubmit(res);
-    } catch (e) {
-      setMessage(e.message || "Failed to save form");
-    } finally {
-      setSaving(false);
-    }
+    } catch (e) { setError(e.message || "Failed to save form"); }
+    finally { setSaving(false); }
   };
 
   return (
-    <div style={{ maxWidth: 1000, margin: "0 auto", padding: 16 }}>
-      <h2>{existingForm ? "Edit UDF Form" : "Create UDF Form"}</h2>
-
-      {/* Form Name + Description */}
-      <div style={{ display: "grid", gap: 12 }}>
-        <input
-          placeholder="Form name"
-          value={name || ""}
-          onChange={(e) => setName(e.target.value)}
-          style={{ padding: 8, border: "1px solid #ccc", borderRadius: 6 }}
+    <Box sx={{ maxWidth: 1000, mx: "auto", p: 2 }}>
+      <Typography variant="h4" gutterBottom>
+        {existingForm ? "Edit Form" : "Create New Form"}
+      </Typography>
+      <Stack spacing={2}>
+        <TextField
+          label="Form Name"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          required
         />
-        <textarea
-          placeholder="Description"
-          value={description || ""}
-          onChange={(e) => setDescription(e.target.value)}
-          style={{ padding: 8, border: "1px solid #ccc", borderRadius: 6 }}
+        <TextField
+          label="Description"
+          multiline
+          minRows={2}
+          value={description}
+          onChange={e => setDescription(e.target.value)}
         />
-      </div>
-
-      <h3 style={{ marginTop: 24 }}>Fields</h3>
+      </Stack>
+      <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>Fields</Typography>
       {fields.map((f, idx) => (
-        <div
-          key={idx}
-          style={{
-            border: "1px solid #ddd",
-            borderRadius: 8,
-            padding: 12,
-            marginBottom: 12,
-            background: f.fieldType === "pageBreak" ? "#f8f9fa" : "white",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-          }}
-        >
+        <Paper key={f.id} sx={{ p: 2, mb: 2, background: f.fieldType === "pageBreak" ? "#f7f7f7" : "white" }}>
           {f.fieldType === "pageBreak" ? (
-            <div style={{ textAlign: "center", fontWeight: "bold" }}>
-              --- Page Break ---
-            </div>
+            <Typography align="center" fontWeight="bold">--- Page Break ---</Typography>
           ) : (
             <>
-              {/* Normal Input Fields */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(6, 1fr)",
-                  gap: 12,
-                }}
-              >
-                <input
-                  placeholder="Field name"
-                  value={f.fieldName || ""}
-                  onChange={(e) => updateField(idx, { fieldName: e.target.value })}
+              <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+                <TextField
+                  label="Field Name"
+                  value={f.fieldName}
+                  onChange={e => updateField(f.id, { fieldName: e.target.value })}
+                  required
+                  sx={{ flex: 1 }}
                 />
-                <input
-                  placeholder="Label"
-                  value={f.label || ""}
-                  onChange={(e) => updateField(idx, { label: e.target.value })}
+                <TextField
+                  label="Label"
+                  value={f.label}
+                  onChange={e => updateField(f.id, { label: e.target.value })}
+                  sx={{ flex: 1 }}
                 />
-                <select
-                  value={f.dataType || "string"}
-                  onChange={(e) => updateField(idx, { dataType: e.target.value })}
+                {/* Only one selector: Input Type */}
+                <Select
+                  label="Input Type"
+                  value={f.inputType}
+                  onChange={e => updateField(f.id, { inputType: e.target.value })}
+                  sx={{ flex: 1, minWidth: 120 }}
                 >
-                  {meta.dataTypes.length > 0 ? (
-                    meta.dataTypes.map((dt) => (
-                      <option key={dt} value={dt}>
-                        {dt}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="string">string</option>
-                  )}
-                </select>
-                <select
-                  value={f.inputType || "text"}
-                  onChange={(e) => updateField(idx, { inputType: e.target.value })}
-                >
-                  {meta.inputTypes.length > 0 ? (
-                    meta.inputTypes.map((it) => (
-                      <option key={it} value={it}>
-                        {it}
-                      </option>
-                    ))
-                  ) : (
-                    <option value="text">text</option>
-                  )}
-                </select>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={!!f.visible}
-                    onChange={(e) => updateField(idx, { visible: e.target.checked })}
-                  />{" "}
-                  Visible
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={!!f.required}
-                    onChange={(e) => updateField(idx, { required: e.target.checked })}
-                  />{" "}
-                  Required
-                </label>
-              </div>
-
-              {/* Options */}
+                  {INPUT_TYPES.map(it => (
+                    <MenuItem key={it.value} value={it.value}>{it.label}</MenuItem>
+                  ))}
+                </Select>
+                <FormControlLabel
+                  control={<Checkbox checked={f.visible} onChange={e => updateField(f.id, { visible: e.target.checked })} />}
+                  label="Visible"
+                />
+                <FormControlLabel
+                  control={<Checkbox checked={f.required} onChange={e => updateField(f.id, { required: e.target.checked })} />}
+                  label="Required"
+                />
+              </Stack>
+              <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                <TextField
+                  label="Placeholder"
+                  value={f.placeholder}
+                  onChange={e => updateField(f.id, { placeholder: e.target.value })}
+                  sx={{ flex: 1 }}
+                />
+                <TextField
+                  label="Help Text"
+                  value={f.helpText}
+                  onChange={e => updateField(f.id, { helpText: e.target.value })}
+                  sx={{ flex: 1 }}
+                />
+                <TextField
+                  label="Default Value"
+                  value={f.defaultValue}
+                  onChange={e => updateField(f.id, { defaultValue: e.target.value })}
+                  sx={{ flex: 1 }}
+                />
+              </Stack>
+              {/* Validation: show relevant controls based on inputType */}
+              {f.inputType === "number" && (
+                <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                  <TextField
+                    label="Min"
+                    type="number"
+                    value={f.validation.min ?? ""}
+                    onChange={e => updateField(f.id, { validation: { ...f.validation, min: e.target.value } })}
+                    sx={{ width: 100 }}
+                  />
+                  <TextField
+                    label="Max"
+                    type="number"
+                    value={f.validation.max ?? ""}
+                    onChange={e => updateField(f.id, { validation: { ...f.validation, max: e.target.value } })}
+                    sx={{ width: 100 }}
+                  />
+                </Stack>
+              )}
+              {(f.inputType === "text" || f.inputType === "textarea" || f.inputType === "email") && (
+                <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                  <TextField
+                    label="Min Length"
+                    type="number"
+                    value={f.validation.minLength ?? ""}
+                    onChange={e => updateField(f.id, { validation: { ...f.validation, minLength: e.target.value } })}
+                    sx={{ width: 120 }}
+                  />
+                  <TextField
+                    label="Max Length"
+                    type="number"
+                    value={f.validation.maxLength ?? ""}
+                    onChange={e => updateField(f.id, { validation: { ...f.validation, maxLength: e.target.value } })}
+                    sx={{ width: 120 }}
+                  />
+                  <TextField
+                    label="Pattern"
+                    value={f.validation.pattern}
+                    onChange={e => updateField(f.id, { validation: { ...f.validation, pattern: e.target.value } })}
+                    sx={{ flex: 1 }}
+                  />
+                </Stack>
+              )}
+              {/* Options for select/radio/checkbox/multiselect */}
               {["select", "multiselect", "radio", "checkbox"].includes(f.inputType) && (
-                <div style={{ marginTop: 12 }}>
-                  <strong>Options</strong>
-                  <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
-                    {(f.options || []).map((o, oIdx) => (
-                      <div
-                        key={oIdx}
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "1fr 1fr auto",
-                          gap: 8,
-                        }}
-                      >
-                        <input
-                          placeholder="Label"
-                          value={o.label || ""}
-                          onChange={(e) => updateOption(idx, oIdx, { label: e.target.value })}
-                        />
-                        <input
-                          placeholder="Value"
-                          value={o.value || ""}
-                          onChange={(e) => updateOption(idx, oIdx, { value: e.target.value })}
-                        />
-                        <button type="button" onClick={() => removeOption(idx, oIdx)}>
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                    <button type="button" onClick={() => addOption(idx)}>
-                      + Add Option
-                    </button>
-                  </div>
-                </div>
+                <Box sx={{ mb: 2 }}>
+                  <Typography fontWeight="bold">Options</Typography>
+                  {f.options.map((o, oIdx) => (
+                    <Stack direction="row" spacing={1} alignItems="center" key={oIdx} sx={{ mt: 1 }}>
+                      <TextField
+                        label="Label"
+                        value={o.label}
+                        onChange={e => updateOption(f.id, oIdx, { label: e.target.value })}
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField
+                        label="Value"
+                        value={o.value}
+                        onChange={e => updateOption(f.id, oIdx, { value: e.target.value })}
+                        sx={{ flex: 1 }}
+                      />
+                      <IconButton onClick={() => removeOption(f.id, oIdx)} color="error">
+                        <Delete />
+                      </IconButton>
+                    </Stack>
+                  ))}
+                  <Button
+                    startIcon={<AddCircleOutline />}
+                    variant="outlined"
+                    sx={{ mt: 1 }}
+                    onClick={() => addOption(f.id)}
+                  >
+                    Add Option
+                  </Button>
+                </Box>
               )}
             </>
           )}
-
-          {/* Remove Button */}
-          <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-            <button type="button" onClick={() => removeField(idx)}>
-              Remove {f.fieldType === "pageBreak" ? "Page Break" : "Field"}
-            </button>
-          </div>
-        </div>
+          {/* Move and remove */}
+          <Stack direction="row" spacing={1}>
+            <IconButton disabled={idx === 0} onClick={() => moveField(idx, idx - 1)}>
+              <ArrowUpward />
+            </IconButton>
+            <IconButton disabled={idx === fields.length - 1} onClick={() => moveField(idx, idx + 1)}>
+              <ArrowDownward />
+            </IconButton>
+            <IconButton onClick={() => removeField(f.id)} color="error">
+              <Delete />
+            </IconButton>
+          </Stack>
+        </Paper>
       ))}
-
-      {/* Actions */}
-      <div style={{ display: "flex", gap: 8 }}>
-        <button type="button" onClick={addField}>
-          + Add Field
-        </button>
-        <button type="button" onClick={addPageBreak}>
-          + Add Page Break
-        </button>
-        <button type="button" disabled={saving} onClick={onSave}>
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+        <Button variant="contained" onClick={addField}>Add Field</Button>
+        <Button variant="contained" onClick={addPageBreak}>Add Page Break</Button>
+      </Stack>
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+        <Button variant="contained" color="primary" onClick={onSave} disabled={saving}>
           {saving ? "Saving..." : existingForm ? "Update Form" : "Save Form"}
-        </button>
+        </Button>
         {onCancel && (
-          <button type="button" onClick={onCancel}>
-            Cancel
-          </button>
+          <Button variant="outlined" color="secondary" onClick={onCancel}>Cancel</Button>
         )}
-        <button type="button" onClick={() => setShowPreview(true)}>
-          Preview Form
-        </button>
-      </div>
-
-      {message && <p style={{ marginTop: 12 }}>{message}</p>}
-
-      {/* Preview */}
-      {showPreview && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-          onClick={(e) => e.target === e.currentTarget && setShowPreview(false)}
-        >
-          <div
-            style={{
-              background: "#fff",
-              padding: 20,
-              borderRadius: 12,
-              maxWidth: 800,
-              width: "95%",
-              maxHeight: "85vh",
-              overflow: "auto",
+        <Button variant="outlined" onClick={() => setPreviewOpen(true)}>Preview</Button>
+      </Stack>
+      {message && <Typography color="success.main">{message}</Typography>}
+      {error && <Typography color="error.main">{error}</Typography>}
+      {/* Preview Dialog */}
+      <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Form Preview — {name || "Untitled"}</DialogTitle>
+        <DialogContent>
+          <UDFFormRenderer
+            form={{ name, description, fields }}
+            isEditing={false}
+            previewMode={true}
+            onSubmit={data => {
+              console.log("Preview submit", data);
+              setPreviewOpen(false);
             }}
-          >
-            <h3>Form Preview — {name || "Untitled"}</h3>
-            <UDFFormRenderer
-              form={{ name, description, fields }}
-              isEditing={false}
-              previewMode={true}
-              onSubmit={(data) => {
-                console.log("Preview Submit:", data);
-                setShowPreview(false);
-              }}
-            />
-            <button
-              style={{ marginTop: 12 }}
-              onClick={() => setShowPreview(false)}
-            >
-              Close Preview
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPreviewOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

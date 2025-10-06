@@ -1,10 +1,10 @@
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import {  fetchFormDetails, submitForm , updateForm , } from "../services/formService";
+import {  fetchFormDetails, submitForm , updateForm , } from "../../../services/formService";
 import { toast } from 'react-toastify';
-import "../styles/Form.css";
-import useAuth from "../hooks/useAuth";
-import { getFormByFormId, updateFormByFormId } from "../services/adminService"; // ✅ correct service for admin
+
+import useAuth from "../../../hooks/useAuth";
+import { getFormByFormId, updateFormByFormId } from "../../../services/adminService"; // ✅ correct service for admin
 
 import { useFormik } from 'formik';
 import * as Yup from 'yup';

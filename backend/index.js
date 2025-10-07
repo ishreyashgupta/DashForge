@@ -9,7 +9,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const udfRoutes = require("./routes/udfRoutes");
 const responseRoutes = require("./routes/ResponseRoutes");
 const mailRoutes = require("./routes/mailRoutes");
-const assignmentRoutes = require("./routes/assigmentRoutes");
+const assignmentRoutes = require("./routes/assignmentRoutes");
 const userRoutes = require("./routes/userRoutes")
 const app = express();
 connectDB();

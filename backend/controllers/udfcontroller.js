@@ -93,3 +93,16 @@ export const getMeta = async (_req, res) => {
     });
   }
 };
+
+export const getFormList = async (req, res) => {
+  try {
+    const forms = await UDFForm.find({}, "_id name");
+    res.status(200).json(forms);
+  } catch (error) {
+    console.error("Error fetching form list:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch form list",
+    });
+  }
+}

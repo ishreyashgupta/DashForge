@@ -11,7 +11,7 @@ router.get("/forms", udfController.getForms);
 router.get("/:id", udfController.getFormById);
 router.put("/:id", udfController.updateForm);
 router.delete("/forms/:id", udfController.deleteForm);
-
+router.get("/forms/list", udfController.getFormList); // ✅ New route for lightweight form list
 
 
 module.exports = router;

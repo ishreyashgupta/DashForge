@@ -8,8 +8,7 @@ import {
 import { useNavigate } from "react-router-dom";
 
 // services
-import { getAllForms, deleteFormByFormId, getAllUsers, assignFormToUser } from "../../../services/adminService";
-;
+import { getAllForms, getFormList, deleteFormByFormId, getAllUsers, assignFormToUser } from "../../../services/adminService";
 
 // hooks
 import useAuth from "../../../hooks/useAuth";
@@ -17,7 +16,7 @@ import useAuth from "../../../hooks/useAuth";
 // components
 import ViewFormModal from "./../../User/Dashboard/ViewFormModal";
 import UDFBuilder from "./UDF/UDFBuilder";
-
+import SavedUDFForms from "./UDF/SavedUDFForms";
 // styles
 import "../../../styles/AdminDashboard.css";
 
@@ -30,7 +29,8 @@ const AdminDashboard = () => {
 
   const navigate = useNavigate();
   const { token, role } = useAuth();
-  const columnHelper = createColumnHelper();
+  // memoize column helper so it's stable between renders (prevents unnecessary re-creation)
+  const columnHelper = useMemo(() => createColumnHelper(), []);
 
   // ✅ Protect route
   useEffect(() => {
@@ -127,7 +127,7 @@ const AdminDashboard = () => {
         },
       }),
     ],
-    [navigate]
+    [navigate, columnHelper]
   );
 
   const table = useReactTable({
@@ -152,7 +152,7 @@ const AssignFormSection = () => {
     const loadData = async () => {
       try {
         const [formsData, usersData] = await Promise.all([
-          getAllForms(token),
+          getFormList(token),
           getAllUsers(token),
         ]);
         setForms(formsData);
@@ -168,20 +168,21 @@ const AssignFormSection = () => {
 
   // ✅ Assign form to user
   const handleAssign = async () => {
-    if (!selectedForm || !selectedUser) {
-      alert("Please select both form and user!");
-      return;
-    }
+  if (!selectedForm || !selectedUser) {
+    alert("Please select both form and user!");
+    return;
+  }
 
-    try {
-      await assignFormToUser(selectedForm, selectedUser, token);
-      alert("✅ Form assigned successfully!");
-      setSelectedForm("");
-      setSelectedUser("");
-    } catch (err) {
-      alert("Error assigning form: " + err.message);
-    }
-  };
+  try {
+    const data = await assignFormToUser(selectedForm, selectedUser, token);
+    alert(data.message || "✅ Form assigned successfully!");
+    setSelectedForm("");
+    setSelectedUser("");
+  } catch (err) {
+    const msg = err.response?.data?.message || err.message || "Something went wrong";
+    alert("Error assigning form: " + msg);
+  }
+};
 
   if (loading) return <p>Loading...</p>;
 
@@ -199,7 +200,7 @@ const AssignFormSection = () => {
           <option value="">-- Select Form --</option>
           {forms.map((form) => (
             <option key={form._id} value={form._id}>
-              {form.title || form._id}
+              {form.name || "Untitled Form"}
             </option>
           ))}
         </select>
@@ -327,6 +328,7 @@ const AssignFormSection = () => {
         {activeTab === "create" && <CreateFormSection />}
         {activeTab === "assign" && <AssignFormSection />}
         {activeTab === "responses" && <ViewResponsesSection />}
+        
       </div>
     </div>
   );

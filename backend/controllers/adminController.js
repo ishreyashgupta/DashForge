@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 const FormData = require("../models/FormData");
-
 // GET /api/admin/forms
 exports.getAllForms = async (req, res) => {
   try {
@@ -85,3 +84,17 @@ exports.deleteFormByFormId = async (req, res) => {
   }
 };
  
+const User = require("../models/User");
+
+// GET /api/admin/users → all users
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select("_id name email role"); // select only needed fields
+    res.status(200).json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+

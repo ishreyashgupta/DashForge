@@ -17,6 +17,9 @@ import useAuth from "../../../hooks/useAuth";
 import ViewFormModal from "./../../User/Dashboard/ViewFormModal";
 import UDFBuilder from "./UDF/UDFBuilder";
 import SavedUDFForms from "./UDF/SavedUDFForms";
+import ViewResponses from "../Dashboard/ViewResponses/ViewResponses"; // ✅ adjust path if needed
+import { Button, Typography, Box } from "@mui/material";
+
 // styles
 import "../../../styles/AdminDashboard.css";
 
@@ -66,9 +69,29 @@ const AdminDashboard = () => {
   };
 
   // ✅ Send Mail (placeholder)
-  const handleSendMail = async (formId) => {
-    alert(`📧 Mail sent for form ID: ${formId}`);
-  };
+  const handleSendMail = async (assignmentId) => {
+  try {
+    const response = await fetch("http://localhost:5000/api/mail/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ assignmentId }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      alert(`📧 Mail sent successfully for form ID: ${assignmentId}`);
+    } else {
+      alert(`❌ Mail failed for form ID: ${assignmentId}\nReason: ${data.message}`);
+    }
+  } catch (error) {
+    console.error("Error sending mail:", error);
+    alert(`❌ Unexpected error: ${error.message}`);
+  }
+};
+
 
   // ✅ Table columns
   const columns = useMemo(
@@ -231,7 +254,7 @@ const AssignFormSection = () => {
   const ViewResponsesSection = () => (
     <div>
       <h3>View All Form Responses</h3>
-      <p>List of all submitted responses will appear here.</p>
+      <SavedUDFForms onBack={() => setActiveTab("manage")} />
     </div>
   );
 

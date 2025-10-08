@@ -27,4 +27,18 @@ router.get("/assignment", protect, userController.getAssignmentByToken);
  */
 router.post("/assignment/status", protect, userController.updateAssignmentStatus);
 
+/**
+ * @route   POST /api/user/assignment/submit
+ * @desc    Submit a filled form and mark assignment completed
+ * @body    { assignmentId, formData }
+ * @access  Private
+ */
+router.post("/assignment/submit", protect, userController.submitAssignment);
+
+
+
+
+
+
+
 module.exports = router;

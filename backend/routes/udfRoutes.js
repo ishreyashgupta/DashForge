@@ -2,16 +2,15 @@ const express = require("express");
 const router = express.Router();
 const udfController = require("../controllers/udfController");
 
-// ✅ Route for fetching metadata
+// ✅ Fetch metadata for frontend dropdowns
 router.get("/meta", udfController.getMeta);
 
 // ✅ CRUD routes for UDF forms
-router.post("/", udfController.createForm);
-router.get("/forms", udfController.getForms);
-router.get("/:id", udfController.getFormById);
-router.put("/:id", udfController.updateForm);
-router.delete("/forms/:id", udfController.deleteForm);
-router.get("/forms/list", udfController.getFormList); // ✅ New route for lightweight form list
-
+router.get("/", udfController.getForms);          // Get all forms
+router.get("/list", udfController.getFormList);  // Lightweight list: _id + name
+router.get("/:id", udfController.getFormById);   // Get single form by ID
+router.post("/", udfController.createUDFForm);   // Create new form
+router.put("/:id", udfController.updateUDFForm); // Update form
+router.delete("/:id", udfController.deleteUDFForm); // Delete form
 
 module.exports = router;

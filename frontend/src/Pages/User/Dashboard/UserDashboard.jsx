@@ -23,13 +23,17 @@ import {
   Avatar,
 } from "@mui/material";
 
+// --- Import your UDFFormRenderer ---
+import UDFFormRenderer from "../../Admin/Dashboard/UDF/UDFFormRenderer";
+
 function Dashboard() {
   const { token, name, email } = useAuth();
-  const [formDetails, setFormDetails] = useState(null);
+  const [formDetails, setFormDetails] = useState(null); // For modal view
   const [assignedForms, setAssignedForms] = useState([]);
+  const [activeForm, setActiveForm] = useState(null); // For dynamic UDF form rendering
   const navigate = useNavigate();
 
-  // Fetch assigned forms on component mount
+  // Fetch assigned forms on mount
   useEffect(() => {
     if (!token) {
       navigate("/login");
@@ -40,7 +44,6 @@ function Dashboard() {
       try {
         const response = await userService.getAssignedForms(token);
         setAssignedForms(response.assignments || []);
-        console.log("Assigned forms:", response.assignments);
       } catch (error) {
         console.error("Error fetching assigned forms:", error);
         toast.error("Failed to fetch assigned forms");
@@ -50,7 +53,7 @@ function Dashboard() {
     fetchAssignedForms();
   }, [token, navigate]);
 
-  // Show form details in modal
+  // Show form details in modal (read-only)
   const handleShowDetails = async (assignmentId) => {
     try {
       const data = await userService.getSingleAssignment(token, assignmentId);
@@ -76,7 +79,7 @@ function Dashboard() {
       );
       if (result?.success) {
         toast.success("Status updated successfully!");
-        // Refresh the list
+        // Refresh assigned forms
         const response = await userService.getAssignedForms(token);
         setAssignedForms(response.assignments || []);
       } else {
@@ -88,9 +91,19 @@ function Dashboard() {
     }
   };
 
-  // Navigate to form for editing/filling
-  const handleFillForm = (assignmentId) => {
-    navigate(`/form/${assignmentId}`);
+  // Render the dynamic UDF form
+  const handleFillForm = async (assignmentId) => {
+    try {
+      const data = await userService.getSingleAssignment(token, assignmentId);
+      if (data && data.form) {
+        setActiveForm({ ...data.form, assignmentId }); // Include assignmentId for submission
+      } else {
+        toast.error("No form found for this assignment");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to fetch form");
+    }
   };
 
   return (
@@ -108,72 +121,114 @@ function Dashboard() {
             </Box>
           </Stack>
 
-          {/* Table for Assigned Forms */}
-          <TableContainer component={Paper} sx={{ mt: 2 }}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Form Name</TableCell>
-                  <TableCell>Description</TableCell>
-                  <TableCell align="center">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {assignedForms.length > 0 ? (
-                  assignedForms.map((form) => (
-                    <TableRow key={form.assignmentId}>
-                      <TableCell>{form.formName}</TableCell>
-                      <TableCell>{form.formDescription || "No description"}</TableCell>
-                      <TableCell align="center">
-                        {form.status === "sent" ? (
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            onClick={() => handleFillForm(form.assignmentId)}
-                          >
-                            Fill Form
-                          </Button>
-                        ) : form.status === "completed" ? (
-                          <Stack direction="row" spacing={1} justifyContent="center">
-                            <Button
-                              variant="outlined"
-                              onClick={() => handleFillForm(form.assignmentId)}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              variant="contained"
-                              color="success"
-                              onClick={() => handleShowDetails(form.assignmentId)}
-                            >
-                              View
-                            </Button>
-                            <Button
-                              variant="contained"
-                              color="secondary"
-                              onClick={() =>
-                                handleUpdateStatus(form.assignmentId, "sent")
-                              }
-                            >
-                              Reopen
-                            </Button>
-                          </Stack>
-                        ) : (
-                          <CircularProgress size={24} />
-                        )}
-                      </TableCell>
+          {/* Render UDF Form if activeForm is set */}
+          {activeForm ? (
+            <Box sx={{ mt: 4 }}>
+              <Button
+                variant="outlined"
+                onClick={() => setActiveForm(null)}
+                sx={{ mb: 2 }}
+              >
+                Back to Dashboard
+              </Button>
+
+              <UDFFormRenderer
+                form={activeForm}
+                onSubmit={async (payload) => {
+                  try {
+                    const res = await userService.submitAssignment(
+                      token,
+                      activeForm.assignmentId,
+                      payload
+                    );
+
+                    if (res.success) {
+                      toast.success("Form submitted successfully!");
+                      setActiveForm(null);
+
+                      // Refresh assigned forms
+                      const response = await userService.getAssignedForms(token);
+                      setAssignedForms(response.assignments || []);
+                    } else {
+                      toast.error("Failed to submit form");
+                    }
+                  } catch (error) {
+                    console.error(error);
+                    toast.error("Error submitting form");
+                  }
+                }}
+              />
+            </Box>
+          ) : (
+            <>
+              {/* Table for Assigned Forms */}
+              <TableContainer component={Paper} sx={{ mt: 2 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Form Name</TableCell>
+                      <TableCell>Description</TableCell>
+                      <TableCell align="center">Actions</TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={3} align="center">
-                      No assigned forms.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                  </TableHead>
+                  <TableBody>
+                    {assignedForms.length > 0 ? (
+                      assignedForms.map((form) => (
+                        <TableRow key={form.assignmentId}>
+                          <TableCell>{form.formName}</TableCell>
+                          <TableCell>{form.formDescription || "No description"}</TableCell>
+                          <TableCell align="center">
+                            {form.status === "sent" ? (
+                              <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={() => handleFillForm(form.assignmentId)}
+                              >
+                                Fill Form
+                              </Button>
+                            ) : form.status === "completed" ? (
+                              <Stack direction="row" spacing={1} justifyContent="center">
+                                <Button
+                                  variant="outlined"
+                                  onClick={() => handleFillForm(form.assignmentId)}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="contained"
+                                  color="success"
+                                  onClick={() => handleShowDetails(form.assignmentId)}
+                                >
+                                  View
+                                </Button>
+                                <Button
+                                  variant="contained"
+                                  color="secondary"
+                                  onClick={() =>
+                                    handleUpdateStatus(form.assignmentId, "sent")
+                                  }
+                                >
+                                  Reopen
+                                </Button>
+                              </Stack>
+                            ) : (
+                              <CircularProgress size={24} />
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={3} align="center">
+                          No assigned forms.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
+          )}
 
           {/* Form Details Modal */}
           {formDetails && (

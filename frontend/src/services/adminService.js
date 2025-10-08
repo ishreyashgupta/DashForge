@@ -84,11 +84,49 @@ export const updateAssignmentStatus = async (tokenValue, status, token) => {
 };
 
 // =======================
-// Lightweight UDF Forms (only id + title)
+// UDF Forms (lightweight list)
 // =======================
 export const getFormList = async (token) => {
-  const res = await axios.get(`${BASE_UDF_API}/forms/list`, {
+  const res = await axios.get(`${BASE_UDF_API}/list`, {  // ✅ updated URL
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data; // [{ _id, name }, ...]
+};
+
+// Optional: Fetch single UDF form by ID (admin)
+export const getUDFFormById = async (id, token) => {
+  const res = await axios.get(`${BASE_UDF_API}/${id}`, {  // ✅ updated URL
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+};
+
+// Optional: Create new UDF form
+export const createUDFForm = async (payload, token) => {
+  const res = await axios.post(`${BASE_UDF_API}/`, payload, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return res.data;
+};
+
+// Optional: Update UDF form by ID
+export const updateUDFForm = async (id, payload, token) => {
+  const res = await axios.put(`${BASE_UDF_API}/${id}`, payload, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return res.data;
+};
+
+// Optional: Delete UDF form by ID
+export const deleteUDFForm = async (id, token) => {
+  const res = await axios.delete(`${BASE_UDF_API}/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
 };

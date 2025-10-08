@@ -24,6 +24,8 @@ exports.getMyAssignments = async (req, res) => {
 
     const assignments = await FormAssignment.find({ userId })
       .populate("formId", "name description")
+        .populate("formId") // <-- this will include all fields of the UDFForm, including 'fields'
+
       .sort({ assignedAt: -1 });
 
     res.status(200).json({
@@ -37,26 +39,26 @@ exports.getMyAssignments = async (req, res) => {
 };
 
 /**
- * Get a single assigned form by surveyToken
+ * Get a single assigned form by assignmentId
  */
 exports.getAssignmentByToken = async (req, res) => {
   try {
-    const { token } = req.query;
+    const { assignmentId } = req.query; // <-- updated to match frontend
     const userId = req.user._id;
 
-    if (!token) {
-      return res.status(400).json({ success: false, message: "Survey token required" });
+    if (!assignmentId) {
+      return res.status(400).json({ success: false, message: "assignmentId required" });
     }
 
-    const assignment = await FormAssignment.findOne({ surveyToken: token })
+    const assignment = await FormAssignment.findById(assignmentId)
       .populate("formId", "name description")
-      .populate("userId", "name email");
+      .populate("userId", "name email")
+      .populate("formId") ;// <-- this will include all fields of the UDFForm, including 'fields'
 
     if (!assignment) {
       return res.status(404).json({ success: false, message: "Assignment not found" });
     }
 
-    // Ensure the logged-in user is the assigned user
     if (String(userId) !== String(assignment.userId._id)) {
       return res.status(403).json({ success: false, message: "Unauthorized access" });
     }
@@ -68,6 +70,7 @@ exports.getAssignmentByToken = async (req, res) => {
         id: assignment.formId._id,
         name: assignment.formId.name,
         description: assignment.formId.description,
+        fields: assignment.formId.fields || [],
       },
     });
   } catch (err) {
@@ -82,14 +85,14 @@ exports.getAssignmentByToken = async (req, res) => {
  */
 exports.updateAssignmentStatus = async (req, res) => {
   try {
-    const { surveyToken, status } = req.body;
+    const { assignmentId, status } = req.body; // <-- updated
     const userId = req.user._id;
 
-    if (!surveyToken || !status) {
-      return res.status(400).json({ success: false, message: "surveyToken and status required" });
+    if (!assignmentId || !status) {
+      return res.status(400).json({ success: false, message: "assignmentId and status required" });
     }
 
-    const assignment = await FormAssignment.findOne({ surveyToken })
+    const assignment = await FormAssignment.findById(assignmentId)
       .populate("formId", "name description")
       .populate("userId", "name email");
 
@@ -112,6 +115,33 @@ exports.updateAssignmentStatus = async (req, res) => {
     });
   } catch (err) {
     console.error("❌ updateAssignmentStatus error:", err);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+exports.submitAssignment = async (req, res) => {
+  try {
+    const { assignmentId, formData } = req.body;
+    const userId = req.user._id;
+
+    if (!assignmentId || !formData) {
+      return res.status(400).json({ success: false, message: "assignmentId and formData required" });
+    }
+
+    const assignment = await FormAssignment.findById(assignmentId);
+    if (!assignment) return res.status(404).json({ success: false, message: "Assignment not found" });
+    if (String(assignment.userId) !== String(userId)) {
+      return res.status(403).json({ success: false, message: "Unauthorized" });
+    }
+
+    assignment.response = formData; 
+    assignment.status = "completed";
+    assignment.completedAt = new Date();
+    await assignment.save();
+
+    res.status(200).json({ success: true, message: "Form submitted successfully" });
+  } catch (err) {
+    console.error("❌ submitAssignment error:", err);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };

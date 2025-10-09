@@ -130,3 +130,38 @@ export const deleteUDFForm = async (id, token) => {
   });
   return res.data;
 };
+// src/services/adminService.js
+const API_BASE = "http://localhost:5000/api";
+
+// ✅ Fetch all assignments
+export const getAllAssignments = async (token) => {
+  const res = await fetch(`${API_BASE}/admin/assignments`, {
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch assignments");
+  }
+
+  return res.json();
+};
+
+// ✅ Delete a specific assignment by ID
+export const deleteAssignment = async (assignmentId, token) => {
+  const res = await fetch(`${API_BASE}/admin/assignments/${assignmentId}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to delete assignment");
+  }
+
+  return res.json();
+};

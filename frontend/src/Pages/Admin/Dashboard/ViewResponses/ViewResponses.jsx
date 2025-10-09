@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   getAllUDFForms,
   getUDFResponses,
-} from "../../../../services/udfservice";
+} from "../../../../services/udffservice";
 import {
   Table,
   TableBody,

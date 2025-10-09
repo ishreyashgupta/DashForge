@@ -4,12 +4,26 @@ import {
   deleteUDFForm,
   updateUDFForm,
   getUDFResponses,
-  submitUDFResponse 
+  submitUDFResponse
 } from "../../../../services/udfservice";
 
-import UDFBuilder from "./UDFBuilder"; // ✅ Use the same builder for edit/create
+import UDFBuilder from "./UDFBuilder";
 import UDFFormRenderer from "./UDFFormRenderer";
 import DynamicResponsesViewer from "./DynamicReponsesViewer";
+
+import {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableContainer,
+  Paper,
+  Button,
+  CircularProgress,
+  Typography,
+  Chip
+} from "@mui/material";
 
 export default function SavedUDFForms() {
   const [forms, setForms] = useState([]);
@@ -36,17 +50,15 @@ export default function SavedUDFForms() {
     refresh();
   };
 
-const handleResponseSubmit = async (formId, responseData) => {
-  try {
-    await submitUDFResponse(formId, responseData);
-    alert("Response submitted successfully!");
-    setActiveForm(null);
-  } catch (err) {
-    alert("Error submitting response: " + err.message);
-  }
-};
-
-
+  const handleResponseSubmit = async (formId, responseData) => {
+    try {
+      await submitUDFResponse(formId, responseData);
+      alert("Response submitted successfully!");
+      setActiveForm(null);
+    } catch (err) {
+      alert("Error submitting response: " + err.message);
+    }
+  };
 
   const handleOpenForm = (form) => {
     setActiveForm(form);
@@ -82,13 +94,12 @@ const handleResponseSubmit = async (formId, responseData) => {
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <CircularProgress />;
 
-  // ✅ Use builder when editing existing forms
   if (activeForm && isEditing) {
     return (
       <UDFBuilder
-        existingForm={activeForm}  // ✅ Pre-fill builder with form data
+        existingForm={activeForm}
         onSubmit={handleSubmit}
         onCancel={() => {
           setActiveForm(null);
@@ -98,14 +109,13 @@ const handleResponseSubmit = async (formId, responseData) => {
     );
   }
 
-  // ✅ Use form renderer when just filling data
   if (activeForm && !isEditing) {
     return (
       <UDFFormRenderer
-  form={activeForm}
-  onSubmit={(data) => handleResponseSubmit(activeForm._id, data)}  // ✅ Correct handler
-  isEditing={false}
-/>
+        form={activeForm}
+        onSubmit={(data) => handleResponseSubmit(activeForm._id, data)}
+        isEditing={false}
+      />
     );
   }
 
@@ -121,28 +131,55 @@ const handleResponseSubmit = async (formId, responseData) => {
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: 16 }}>
-      <h3>Saved UDF Forms</h3>
-      <div style={{ display: "grid", gap: 12 }}>
-        {forms.length === 0 && <div>No forms yet.</div>}
-        {forms.map((f) => (
-          <div key={f._id} style={{ border: "1px solid #ddd", borderRadius: 8, padding: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <strong>{f.name || "Untitled Form"}</strong>
-                {f.description && <div style={{ opacity: 0.7 }}>{f.description}</div>}
-                <small>{(f.fields || []).length} field(s)</small>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => handleOpenForm(f)}>Open</button>
-                <button onClick={() => handleEditForm(f)}>Edit</button>
-                <button onClick={() => handleViewResponses(f)}>View Responses</button>
-                <button onClick={() => remove(f._id)}>Delete</button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <TableContainer component={Paper} sx={{ maxWidth: 1000, margin: "0 auto", padding: 2 }}>
+      <Typography variant="h5" gutterBottom>
+        Saved UDF Forms
+      </Typography>
+      {forms.length === 0 ? (
+        <Typography>No forms yet.</Typography>
+      ) : (
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Form Name</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Fields</TableCell>
+              <TableCell>Responses</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {forms.map((f) => (
+              <TableRow key={f._id} hover>
+                <TableCell>{f.name || "Untitled Form"}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={f.isActive ? "Online" : "Offline"}
+                    color={f.isActive ? "success" : "default"}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell>{(f.fields || []).length}</TableCell>
+                <TableCell>{f.responsesCount || 0}</TableCell>
+                <TableCell align="right">
+                  <Button size="small" onClick={() => handleOpenForm(f)}>
+                    Open
+                  </Button>
+                  <Button size="small" onClick={() => handleEditForm(f)}>
+                    Edit
+                  </Button>
+                  <Button size="small" onClick={() => handleViewResponses(f)}>
+                    Responses
+                  </Button>
+                  <Button size="small" color="error" onClick={() => remove(f._id)}>
+                    Delete
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </TableContainer>
   );
 }

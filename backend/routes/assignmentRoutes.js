@@ -1,22 +1,25 @@
 const express = require("express");
 const router = express.Router();
+
 const {
   assignForm,
   bulkAssignForm,
   getUserAssignments,
   updateAssignmentStatus,
+  getAllAssignments,
+  deleteAssignment,
 } = require("../controllers/assignmentController");
 
-// ✅ Assign a single form to a user
-router.post("/assign", assignForm);
+const { protect, adminOnly } = require("../middleware/authMiddleware");
 
-// ✅ Bulk assign forms to users
-router.post("/bulk-assign", bulkAssignForm);
+// ✅ User Routes
+router.post("/assign", protect, assignForm);                // Assign a single form to a user
+router.post("/bulk-assign", protect, bulkAssignForm);       // Bulk assign forms to users
+router.get("/user/:userId", protect, getUserAssignments);  // Get all assignments for a user
+router.put("/status", protect, updateAssignmentStatus);     // Update assignment status (sent → opened → completed)
 
-// ✅ Get all assignments for a user
-router.get("/user/:userId", getUserAssignments);
-
-// ✅ Update assignment status (sent → opened → completed)
-router.put("/status", updateAssignmentStatus);
+// ✅ Admin-only routes (no /admin prefix)
+router.get("/", protect, adminOnly, getAllAssignments);         // Get all assignments
+router.delete("/:id", protect, adminOnly, deleteAssignment);    // Delete an assignment
 
 module.exports = router;

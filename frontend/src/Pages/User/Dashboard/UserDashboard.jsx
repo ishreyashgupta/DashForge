@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useAuth from "../../../hooks/useAuth";
 import ViewFormModal from "./ViewFormModal";
+import DynamicResponsesViewer from "../../Admin/Dashboard/UDF/DynamicReponsesViewer";
 import * as userService from "../../../services/userService";
 
 // --- MUI Imports ---
@@ -232,7 +233,7 @@ function Dashboard() {
 
           {/* Form Details Modal */}
           {formDetails && (
-            <ViewFormModal form={formDetails} onClose={() => setFormDetails(null)} />
+            <DynamicResponsesViewer form={formDetails} onClose={() => setFormDetails(null)} />
           )}
         </Box>
       ) : (

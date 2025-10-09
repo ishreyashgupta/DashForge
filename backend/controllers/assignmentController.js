@@ -216,3 +216,49 @@ exports.validateSurveyToken = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
+/**
+ * Get all assignments (for admin dashboard)
+ */
+exports.getAllAssignments = async (req, res) => {
+  try {
+    const assignments = await FormAssignment.find()
+      .populate("formId", "name description")
+      .populate("userId", "name email")
+      .sort({ assignedAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      assignments: assignments.map(a => ({
+        _id: a._id,
+        formName: a.formId?.name,
+        userName: a.userId?.name,
+        userEmail: a.userId?.email,
+        assignedAt: a.assignedAt,
+        status: a.status,
+      })),
+    });
+  } catch (error) {
+    console.error("❌ Error in getAllAssignments:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+/**
+ * Delete an assignment by ID
+ */
+exports.deleteAssignment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const assignment = await FormAssignment.findById(id);
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: "Assignment not found" });
+    }
+
+    await assignment.deleteOne();
+    res.status(200).json({ success: true, message: "Assignment deleted successfully" });
+  } catch (error) {
+    console.error("❌ Error in deleteAssignment:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};

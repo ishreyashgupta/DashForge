@@ -22,16 +22,20 @@ import {
   Button,
   CircularProgress,
   Typography,
-  Chip
+  Chip,
+  Tabs,
+  Tab,
+  Box
 } from "@mui/material";
 
-export default function SavedUDFForms() {
+export default function UDFDashboard() {
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeForm, setActiveForm] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [viewerForm, setViewerForm] = useState(null);
   const [responses, setResponses] = useState([]);
+  const [tabIndex, setTabIndex] = useState(0);
 
   const refresh = () => {
     setLoading(true);
@@ -55,6 +59,7 @@ export default function SavedUDFForms() {
       await submitUDFResponse(formId, responseData);
       alert("Response submitted successfully!");
       setActiveForm(null);
+      setTabIndex(0);
     } catch (err) {
       alert("Error submitting response: " + err.message);
     }
@@ -63,11 +68,24 @@ export default function SavedUDFForms() {
   const handleOpenForm = (form) => {
     setActiveForm(form);
     setIsEditing(false);
+    setTabIndex(1); // switch to View tab
   };
 
   const handleEditForm = (form) => {
     setActiveForm(form);
     setIsEditing(true);
+    setTabIndex(1); // switch to Edit tab
+  };
+
+  const handleViewResponses = async (form) => {
+    try {
+      const data = await getUDFResponses(form._id);
+      setResponses(data);
+      setViewerForm(form);
+      setTabIndex(2); // switch to Responses tab
+    } catch (error) {
+      alert("Error fetching responses");
+    }
   };
 
   const handleSubmit = async (data) => {
@@ -78,108 +96,95 @@ export default function SavedUDFForms() {
       }
       setActiveForm(null);
       setIsEditing(false);
+      setTabIndex(0); // back to main tab
       refresh();
     } catch (err) {
       alert("Error: " + err.message);
     }
   };
 
-  const handleViewResponses = async (form) => {
-    try {
-      const data = await getUDFResponses(form._id);
-      setResponses(data);
-      setViewerForm(form);
-    } catch (error) {
-      alert("Error fetching responses");
-    }
-  };
-
   if (loading) return <CircularProgress />;
 
-  if (activeForm && isEditing) {
-    return (
-      <UDFBuilder
-        existingForm={activeForm}
-        onSubmit={handleSubmit}
-        onCancel={() => {
-          setActiveForm(null);
-          setIsEditing(false);
-        }}
-      />
-    );
-  }
-
-  if (activeForm && !isEditing) {
-    return (
-      <UDFFormRenderer
-        form={activeForm}
-        onSubmit={(data) => handleResponseSubmit(activeForm._id, data)}
-        isEditing={false}
-      />
-    );
-  }
-
-  if (viewerForm) {
-    return (
-      <DynamicResponsesViewer
-        form={viewerForm}
-        formId={viewerForm._id}
-        responses={responses}
-        onClose={() => setViewerForm(null)}
-      />
-    );
-  }
-
   return (
-    <TableContainer component={Paper} sx={{ maxWidth: 1000, margin: "0 auto", padding: 2 }}>
-      <Typography variant="h5" gutterBottom>
-        Saved UDF Forms
+    <Paper sx={{ maxWidth: 1200, margin: "0 auto", padding: 2 }}>
+      <Typography variant="h4" gutterBottom>
+        UDF Forms Dashboard
       </Typography>
-      {forms.length === 0 ? (
-        <Typography>No forms yet.</Typography>
-      ) : (
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Form Name</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Fields</TableCell>
-              <TableCell>Responses</TableCell>
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {forms.map((f) => (
-              <TableRow key={f._id} hover>
-                <TableCell>{f.name || "Untitled Form"}</TableCell>
-                <TableCell>
-                  <Chip
-                    label={f.isActive ? "Online" : "Offline"}
-                    color={f.isActive ? "success" : "default"}
-                    size="small"
-                  />
-                </TableCell>
-                <TableCell>{(f.fields || []).length}</TableCell>
-                <TableCell>{f.responsesCount || 0}</TableCell>
-                <TableCell align="right">
-                  <Button size="small" onClick={() => handleOpenForm(f)}>
-                    Open
-                  </Button>
-                  <Button size="small" onClick={() => handleEditForm(f)}>
-                    Edit
-                  </Button>
-                  <Button size="small" onClick={() => handleViewResponses(f)}>
-                    Responses
-                  </Button>
-                  <Button size="small" color="error" onClick={() => remove(f._id)}>
-                    Delete
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-    </TableContainer>
+
+      <Tabs value={tabIndex} onChange={(e, val) => setTabIndex(val)}>
+        <Tab label="Forms" />
+        <Tab label={isEditing ? "Edit Form" : "View Form"} disabled={!activeForm} />
+        <Tab label="Responses" disabled={!viewerForm} />
+      </Tabs>
+
+      <Box sx={{ mt: 2 }}>
+        {tabIndex === 0 && (
+          <TableContainer>
+            {forms.length === 0 ? (
+              <Typography>No forms yet.</Typography>
+            ) : (
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Form Name</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Fields</TableCell>
+                    <TableCell>Responses</TableCell>
+                    <TableCell align="right">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {forms.map((f) => (
+                    <TableRow key={f._id} hover>
+                      <TableCell>{f.name || "Untitled Form"}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={f.isActive ? "Online" : "Offline"}
+                          color={f.isActive ? "success" : "default"}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>{(f.fields || []).length}</TableCell>
+                      <TableCell>{f.responsesCount || 0}</TableCell>
+                      <TableCell align="right">
+                        <Button size="small" onClick={() => handleOpenForm(f)}>Open</Button>
+                        <Button size="small" onClick={() => handleEditForm(f)}>Edit</Button>
+                        <Button size="small" onClick={() => handleViewResponses(f)}>Responses</Button>
+                        <Button size="small" color="error" onClick={() => remove(f._id)}>Delete</Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </TableContainer>
+        )}
+
+        {tabIndex === 1 && activeForm && (
+          isEditing ? (
+            <UDFBuilder
+              existingForm={activeForm}
+              onSubmit={handleSubmit}
+              onCancel={() => { setActiveForm(null); setIsEditing(false); setTabIndex(0); }}
+            />
+          ) : (
+            <UDFFormRenderer
+              form={activeForm}
+              onSubmit={(data) => handleResponseSubmit(activeForm._id, data)}
+              isEditing={false}
+            />
+          )
+        )}
+
+        {tabIndex === 2 && viewerForm && (
+          <DynamicResponsesViewer
+            form={viewerForm}
+            formId={viewerForm._id}
+            responses={responses}
+            onClose={() => { setViewerForm(null); setTabIndex(0); }}
+          />
+        )}
+      </Box>
+    </Paper>
   );
 }

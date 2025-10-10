@@ -1,10 +1,16 @@
+const mongoose = require("mongoose");
 const UDFResponse = require("../models/UDFResponse");
 const UDFForm = require("../models/UDFForm");
 
 // Submit a form response
 exports.submitResponse = async (req, res) => {
   try {
-    const formId = req.params.formId;
+    const { formId } = req.params;
+
+    // Validate formId
+    if (!formId || !mongoose.Types.ObjectId.isValid(formId)) {
+      return res.status(400).json({ message: "Invalid or missing formId" });
+    }
 
     // Check if form exists
     const form = await UDFForm.findById(formId);
@@ -16,6 +22,7 @@ exports.submitResponse = async (req, res) => {
     const response = new UDFResponse({
       formId,
       data: req.body,
+      user: req.user?.id || "Anonymous", // optional, track who submitted
     });
 
     await response.save();
@@ -30,7 +37,14 @@ exports.submitResponse = async (req, res) => {
 // Get all responses for a form
 exports.getResponses = async (req, res) => {
   try {
-    const responses = await UDFResponse.find({ formId: req.params.formId }).sort({ createdAt: -1 });
+    const { formId } = req.params;
+
+    // Validate formId
+    if (!formId || !mongoose.Types.ObjectId.isValid(formId)) {
+      return res.status(400).json({ message: "Invalid or missing formId" });
+    }
+
+    const responses = await UDFResponse.find({ formId }).sort({ createdAt: -1 });
     res.status(200).json(responses);
   } catch (error) {
     console.error("Error fetching responses:", error);

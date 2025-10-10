@@ -20,6 +20,7 @@
     "@tanstack/react-table": "^8.21.3",
     "axios": "^1.12.2",
     "class-variance-authority": "^0.7.1",
+    "file-saver": "^2.0.5",
     "formik": "^2.4.6",
     "lucide-react": "^0.544.0",
     "react": "^19.1.0",
@@ -28,8 +29,10 @@
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.6.3",
     "react-toastify": "^11.0.5",
+    "recharts": "^3.2.1",
     "tailwind-merge": "^3.3.1",
     "x-data-grid": "^2.1.0",
+    "xlsx": "^0.18.5",
     "yup": "^1.6.1"
   },
   "devDependencies": {

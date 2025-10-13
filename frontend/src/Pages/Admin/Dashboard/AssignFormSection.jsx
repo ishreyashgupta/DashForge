@@ -16,6 +16,7 @@ import {
   assignFormToUser,
   getFormList,
   getAllAssignments,
+  bulkAssignForms,
 } from "../../../services/adminService";
 import useAuth from "../../../hooks/useAuth";
 
@@ -24,10 +25,9 @@ const AssignFormSection = () => {
   const [allForms, setAllForms] = useState([]);
   const [users, setUsers] = useState([]);
   const [selectedFormId, setSelectedFormId] = useState("");
-  const [selectedUserId, setSelectedUserId] = useState("");
-  const [selectedUserIds, setSelectedUserIds] = useState([]); // for bulk
-  const [loadingAssign, setLoadingAssign] = useState(true);
+  const [selectedUserIds, setSelectedUserIds] = useState([]); // ✅ unified for single & multiple
   const [assignments, setAssignments] = useState([]);
+  const [loadingAssign, setLoadingAssign] = useState(true);
   const [loadingAssignments, setLoadingAssignments] = useState(true);
 
   // Load forms and users
@@ -70,44 +70,35 @@ const AssignFormSection = () => {
     loadAssignments();
   }, [token]);
 
-  // Single assignment
+  // ✅ Unified assign function (works for single or multiple)
   const handleAssign = async () => {
-    if (!selectedFormId || !selectedUserId) {
-      alert("Please select both form and user!");
-      return;
-    }
-    try {
-      const data = await assignFormToUser(selectedFormId, selectedUserId, token);
+  if (!selectedFormId || selectedUserIds.length === 0) {
+    alert("Please select a form and at least one user!");
+    return;
+  }
+
+  try {
+    if (selectedUserIds.length === 1) {
+      // Single assignment
+      const data = await assignFormToUser(selectedFormId, selectedUserIds[0], token);
       alert(data.message || "✅ Form assigned successfully!");
-      setSelectedFormId("");
-      setSelectedUserId("");
-      await loadAssignments();
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message || "Something went wrong";
-      alert("Error assigning form: " + msg);
-    }
-  };
-
-  // Bulk assignment
-  const handleBulkAssign = async () => {
-    if (!selectedFormId || selectedUserIds.length === 0) {
-      alert("Please select a form and at least one user!");
-      return;
-    }
-
-    try {
-      const data = await assignFormToUser(selectedFormId, selectedUserIds, token, true);
+    } else {
+      // Bulk assignment
+      const data = await bulkAssignForms(selectedFormId, selectedUserIds, token);
       alert("Bulk assignment completed! Check console for details.");
       console.log("Bulk Assign Results:", data.results);
-
-      setSelectedFormId("");
-      setSelectedUserIds([]);
-      await loadAssignments();
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message || "Something went wrong";
-      alert("Error in bulk assignment: " + msg);
     }
-  };
+
+    // Reset selections
+    setSelectedFormId("");
+    setSelectedUserIds([]);
+    await loadAssignments();
+  } catch (err) {
+    const msg = err.response?.data?.message || err.message || "Something went wrong";
+    alert("Error assigning form: " + msg);
+  }
+};
+
 
   // Map assignments grouped by form
   const groupedRows = Object.values(
@@ -142,7 +133,7 @@ const AssignFormSection = () => {
     <Box display="flex" gap={4} alignItems="flex-start">
       {/* Left Column: Assign Form */}
       <Box flex="1" maxWidth={400} display="flex" flexDirection="column" gap={2}>
-        {/* Single/Bulk form select */}
+        {/* Select Form */}
         <FormControl fullWidth>
           <InputLabel>Choose Form</InputLabel>
           <Select
@@ -158,33 +149,13 @@ const AssignFormSection = () => {
           </Select>
         </FormControl>
 
-        {/* Single assign */}
+        {/* Select Single/Multiple Users */}
         <FormControl fullWidth>
-          <InputLabel>Choose User</InputLabel>
-          <Select
-            value={selectedUserId}
-            label="Choose User"
-            onChange={(e) => setSelectedUserId(e.target.value)}
-          >
-            {users.map((user) => (
-              <MenuItem key={user._id} value={user._id}>
-                {user.name} ({user.email})
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <Button variant="contained" color="primary" onClick={handleAssign}>
-          Assign Form
-        </Button>
-
-        {/* Bulk assign */}
-        <FormControl fullWidth>
-          <InputLabel>Choose Users (Bulk)</InputLabel>
+          <InputLabel>Choose Users</InputLabel>
           <Select
             multiple
             value={selectedUserIds}
-            label="Choose Users (Bulk)"
+            label="Choose Users"
             onChange={(e) => setSelectedUserIds(e.target.value)}
             renderValue={(selected) =>
               users
@@ -201,12 +172,17 @@ const AssignFormSection = () => {
           </Select>
         </FormControl>
 
-        <Button variant="contained" color="secondary" onClick={handleBulkAssign}>
-          Bulk Assign Form
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleAssign}
+          disabled={!selectedFormId || selectedUserIds.length === 0}
+        >
+          Assign Form
         </Button>
       </Box>
 
-      {/* Right Column: Assignments Table */}
+      {/* Right Column: Assigned Forms */}
       <Box flex="2">
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
           <Typography variant="h6">Assigned Forms</Typography>

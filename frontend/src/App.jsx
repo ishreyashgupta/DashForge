@@ -8,7 +8,7 @@ import UDFFormRenderer from "././Pages/Admin/Dashboard/UDF/UDFFormRenderer";
 import SavedUDFForms from "././Pages/Admin/Dashboard/UDF/SavedUDFForms";
 
 // Lazy-loaded components
-const PersonalForm = lazy(() => import("././Pages/User/Dashboard/PersonalForm"));
+//const PersonalForm = lazy(() => import("././Pages/User/Dashboard/PersonalForm"));
 const DashboardWrapper = lazy(() => import("./Helper/DashboardWrapper")); // 👈 wrapper
 const LoginForm = lazy(() => import("./Components/LoginForm"));
 const RegisterForm = lazy(() => import("././Pages/RegisterPage/RegisterPage"));
@@ -34,13 +34,14 @@ function App() {
           {/* ---------- Protected Routes with Layout ---------- */}
           <Route element={<Layout />}>
             <Route path="/dashboard" element={<DashboardWrapper />} /> {/* 👈 role decides */}
-            <Route path="/form" element={<PersonalForm />} />
-            <Route path="/form/:formId" element={<PersonalForm />} />
+            <Route path="/form" element={<UDFFormRendererWrapper />} />
+            <Route path="/form/:formId" element={<UDFFormRendererWrapper />} />
 
             {/* UDF-related Routes */}
             <Route path="/create-form" element={<UDFBuilder />} />
             <Route path="/udf/forms" element={<SavedUDFForms />} />
             <Route path="/udf/fill/:formId" element={<UDFFormRendererWrapper />} />
+            
           </Route>
         </Routes>
       </Suspense>

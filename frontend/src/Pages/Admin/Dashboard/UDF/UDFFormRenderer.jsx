@@ -66,6 +66,7 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
   useEffect(() => {
     if (containerRef.current) containerRef.current.scrollTop = 0;
   }, [pageIndex]);
+  
 
   // ----------------- VALIDATION -----------------
   function validateField(f, value) {

@@ -30,10 +30,10 @@ export default function UDFResponsesDashboard() {
   // Fetch all forms and their responses
   const fetchData = async () => {
     setLoading(true);
+    
     try {
       const allForms = await getAllUDFForms();
       setForms(allForms);
-
       const responseData = {};
       await Promise.all(
         allForms.map(async (form) => {

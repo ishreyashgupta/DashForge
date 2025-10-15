@@ -1,25 +1,18 @@
 import React, { lazy, Suspense } from "react";
-import { Routes, Route, useParams } from "react-router-dom";
+import { Routes, Route,  } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-// UDF components (critical, so not lazy-loaded)
-import UDFFormRenderer from "././Pages/Admin/Dashboard/UDF/UDFFormRenderer";
+// UDF components (critical)
 import SavedUDFForms from "././Pages/Admin/Dashboard/UDF/SavedUDFForms";
 
 // Lazy-loaded components
-//const PersonalForm = lazy(() => import("././Pages/User/Dashboard/PersonalForm"));
-const DashboardWrapper = lazy(() => import("./Helper/DashboardWrapper")); // 👈 wrapper
+const DashboardWrapper = lazy(() => import("./Helper/DashboardWrapper"));
 const LoginForm = lazy(() => import("./Components/LoginForm"));
 const RegisterForm = lazy(() => import("././Pages/RegisterPage/RegisterPage"));
 const Layout = lazy(() => import("./Components/Common/Layout"));
 const UDFBuilder = lazy(() => import("././Pages/Admin/Dashboard/UDF/UDFBuilder"));
-
-// Wrapper for form renderer with dynamic :formId param
-function UDFFormRendererWrapper() {
-  const { formId } = useParams();
-  return <UDFFormRenderer formId={formId} />;
-}
+const UserFormRenderer = lazy(() => import("./Pages/User/UserFormRenderer")); // ← New
 
 function App() {
   return (
@@ -33,15 +26,15 @@ function App() {
 
           {/* ---------- Protected Routes with Layout ---------- */}
           <Route element={<Layout />}>
-            <Route path="/dashboard" element={<DashboardWrapper />} /> {/* 👈 role decides */}
-            <Route path="/form" element={<UDFFormRendererWrapper />} />
-            <Route path="/form/:formId" element={<UDFFormRendererWrapper />} />
+            <Route path="/dashboard" element={<DashboardWrapper />} />
+
+            {/* Route to handle /form?token=xxx and redirect to dashboard */}
+            <Route path="/form" element={<UserFormRenderer />} />
 
             {/* UDF-related Routes */}
             <Route path="/create-form" element={<UDFBuilder />} />
             <Route path="/udf/forms" element={<SavedUDFForms />} />
-            <Route path="/udf/fill/:formId" element={<UDFFormRendererWrapper />} />
-            
+            <Route path="/udf/fill/:formId" element={<DashboardWrapper />} /> {/* Optional */}
           </Route>
         </Routes>
       </Suspense>

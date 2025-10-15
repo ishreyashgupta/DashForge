@@ -1,5 +1,5 @@
 const API_BASE = "http://localhost:5000/api/user";
-
+import axios from "axios"
 // Fetch all forms assigned to the current user
 export const getAssignedForms = async (token) => {
   try {
@@ -65,4 +65,20 @@ export const submitAssignment = async (token, assignmentId, formData) => {
     console.error(err);
     return { success: false, message: "Submission failed" };
   }
+};
+export const getAssignmentByToken = async (token) => {
+  try {
+  const res = await axios.get(`http://localhost:5000/api/assignments/validate?token=${token}`);
+  if (res.data?.success && res.data.assignment) {
+    return {
+      assignmentId: res.data.assignment.id,
+      status: res.data.assignment.status,
+      form: res.data.form,
+    };
+  }
+} catch (err) {
+  console.error(err);
+  return { success: false, message: "Failed to fetch assignment" };
+}
+
 };

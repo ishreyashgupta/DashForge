@@ -83,7 +83,7 @@ export default function UDFDashboard() {
       setResponses(data);
       setViewerForm(form);
       setTabIndex(2); // switch to Responses tab
-    } catch (error) {
+    } catch (err) {
       alert("Error fetching responses");
     }
   };

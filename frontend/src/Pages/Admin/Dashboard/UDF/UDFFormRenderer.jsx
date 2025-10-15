@@ -10,7 +10,6 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
     for (const f of fields) {
       if (!f) continue;
 
-      // Treat pageBreak as a separator, not an input
       if (f.fieldType === "pageBreak") {
         if (p[p.length - 1].length > 0) p.push([]);
       } else if (f.visible !== false) {
@@ -39,20 +38,26 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
 
   // Keep state in sync when form updates
   useEffect(() => {
+    if (!fields.length) return;
+
     setFormState((prev) => {
       const next = { ...prev };
+      let changed = false;
+
       for (const f of fields) {
         if (!f || f.fieldType === "pageBreak") continue;
         const name = f.fieldName || f.label || "";
         if (!name) continue;
 
         if (next[name] === undefined) {
+          changed = true;
           if (f.inputType === "checkbox") next[name] = !!f.defaultValue;
           else if (f.inputType === "multiselect") next[name] = Array.isArray(f.defaultValue) ? f.defaultValue : [];
           else next[name] = f.defaultValue ?? "";
         }
       }
-      return next;
+
+      return changed ? next : prev;
     });
   }, [fields]);
 
@@ -66,7 +71,6 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
   useEffect(() => {
     if (containerRef.current) containerRef.current.scrollTop = 0;
   }, [pageIndex]);
-  
 
   // ----------------- VALIDATION -----------------
   function validateField(f, value) {
@@ -82,7 +86,6 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
     if (f.validation) {
       const { min, max, minLength, maxLength, pattern } = f.validation;
 
-      // Numeric checks
       if ((f.dataType === "number" || f.inputType === "number") && value !== "" && value !== undefined && value !== null) {
         const num = Number(value);
         if (!Number.isNaN(num)) {
@@ -91,13 +94,11 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
         }
       }
 
-      // Length checks
       if (typeof value === "string" || Array.isArray(value)) {
         if (minLength && value.length < Number(minLength)) return `${label} must have at least ${minLength} characters`;
         if (maxLength && value.length > Number(maxLength)) return `${label} must have at most ${maxLength} characters`;
       }
 
-      // Pattern checks
       if (pattern) {
         try {
           const re = new RegExp(pattern);
@@ -161,7 +162,6 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
     }
   };
 
-  // Disable Enter key for multi-step navigation
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       const active = document.activeElement;
@@ -272,7 +272,6 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
           )}
         </div>
 
-        {/* Fields container */}
         <form onSubmit={handleFinalSubmit} style={{ marginTop: 12 }} onKeyDown={handleKeyDown}>
           <div>
             {currentPageFields.length === 0 ? (
@@ -296,7 +295,6 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
             )}
           </div>
 
-          {/* Bottom toolbar */}
           {!isEditing && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16 }}>
               <div />

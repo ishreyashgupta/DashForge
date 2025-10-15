@@ -13,14 +13,14 @@ const formatAssignment = (assignment, form) => ({
   formId: form ? form._id : assignment.formId,
   formName: form ? form.name : undefined,
   formDescription: form ? form.description : undefined,
-  surveyToken: assignment.surveyToken,   // 👈 add this line
+  surveyToken: assignment.surveyToken, 
   status: assignment.status,
   assignedAt: assignment.assignedAt,
   completedAt: assignment.completedAt || null,
 });
 
 /**
- * Assign form to a single user (dashboard only, no mail here)
+ * Assign form to a single user (admin dashboard)
  */
 exports.assignForm = async (req, res) => {
   try {
@@ -36,24 +36,17 @@ exports.assignForm = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    // Prevent duplicate
+    // Prevent duplicate assignment
     let assignment = await FormAssignment.findOne({ userId, formId });
-    if (assignment) {
-      return res.status(200).json({
-        success: true,
-        message: "Form already assigned to this user",
-        assignment: formatAssignment(assignment, form),
+    if (!assignment) {
+      assignment = new FormAssignment({
+        userId,
+        formId,
+        surveyToken: crypto.randomUUID(),
+        status: "sent",
       });
+      await assignment.save();
     }
-
-    // Create new
-    assignment = new FormAssignment({
-      userId,
-      formId,
-      surveyToken: crypto.randomUUID(),
-      status: "sent",
-    });
-    await assignment.save();
 
     res.status(201).json({
       success: true,
@@ -72,7 +65,6 @@ exports.assignForm = async (req, res) => {
 exports.bulkAssignForm = async (req, res) => {
   try {
     const { formId, userIds } = req.body;
-
     if (!formId || !Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({ success: false, message: "formId and userIds[] are required" });
     }
@@ -81,6 +73,7 @@ exports.bulkAssignForm = async (req, res) => {
     if (!form) return res.status(404).json({ success: false, message: "Form not found" });
 
     const results = [];
+
     for (const userId of userIds) {
       if (!mongoose.Types.ObjectId.isValid(userId)) {
         results.push({ userId, status: "failed", reason: "Invalid userId" });
@@ -93,27 +86,24 @@ exports.bulkAssignForm = async (req, res) => {
         continue;
       }
 
-      // Prevent duplicate
       let existing = await FormAssignment.findOne({ userId, formId });
-      if (existing) {
+      if (!existing) {
+        const assignment = new FormAssignment({
+          userId,
+          formId,
+          surveyToken: crypto.randomUUID(),
+          status: "sent",
+        });
+        await assignment.save();
+        results.push({ userId, status: "success", assignment: formatAssignment(assignment, form) });
+      } else {
         results.push({ userId, status: "skipped", reason: "Already assigned", assignment: formatAssignment(existing, form) });
-        continue;
       }
-
-      // New assignment
-      const assignment = new FormAssignment({
-        userId,
-        formId,
-        surveyToken: crypto.randomUUID(),
-        status: "sent",
-      });
-      await assignment.save();
-      results.push({ userId, status: "success", assignment: formatAssignment(assignment, form) });
     }
 
     res.status(200).json({
       success: true,
-      message: "Bulk assignment completed (no mail sent)",
+      message: "Bulk assignment completed",
       results,
     });
   } catch (error) {
@@ -123,7 +113,7 @@ exports.bulkAssignForm = async (req, res) => {
 };
 
 /**
- * Get all assignments for a user (with form details)
+ * Get all assignments for a user
  */
 exports.getUserAssignments = async (req, res) => {
   try {
@@ -153,9 +143,7 @@ exports.updateAssignmentStatus = async (req, res) => {
     }
 
     const assignment = await FormAssignment.findOne({ surveyToken: token }).populate("formId", "name description");
-    if (!assignment) {
-      return res.status(404).json({ success: false, message: "Assignment not found" });
-    }
+    if (!assignment) return res.status(404).json({ success: false, message: "Assignment not found" });
 
     assignment.status = status;
     if (status === "completed") assignment.completedAt = new Date();
@@ -172,25 +160,24 @@ exports.updateAssignmentStatus = async (req, res) => {
   }
 };
 
+/**
+ * Validate survey token (no JWT needed)
+ */
 exports.validateSurveyToken = async (req, res) => {
   try {
     const { token } = req.query;
-    const loggedInUserId = req.user?._id; // from auth middleware if you use JWT/session
+    const loggedInUserId = req.user?._id; // populated by authMiddleware if user is logged in
 
-    if (!token) {
-      return res.status(400).json({ success: false, message: "Token required" });
-    }
+    if (!token) return res.status(400).json({ success: false, message: "Token required" });
 
     const assignment = await FormAssignment.findOne({ surveyToken: token })
       .populate("formId", "name description")
-      .populate("userId", "email name");
+      .populate("userId", "name email");
 
-    if (!assignment) {
-      return res.status(404).json({ success: false, message: "Invalid or expired token" });
-    }
+    if (!assignment) return res.status(404).json({ success: false, message: "Invalid or expired token" });
 
-    // ✅ Extra validation: ensure logged-in user matches assigned user
-    if (loggedInUserId && String(loggedInUserId) !== String(assignment.userId._id)) {
+    // ✅ Protection: ensure logged-in user matches the assigned user
+    if (loggedInUserId && assignment.userId._id.toString() !== loggedInUserId.toString()) {
       return res.status(403).json({
         success: false,
         message: "You are not authorized to access this form",
@@ -217,8 +204,9 @@ exports.validateSurveyToken = async (req, res) => {
   }
 };
 
+
 /**
- * Get all assignments (for admin dashboard)
+ * Get all assignments (admin dashboard)
  */
 exports.getAllAssignments = async (req, res) => {
   try {
@@ -243,22 +231,37 @@ exports.getAllAssignments = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
 /**
  * Delete an assignment by ID
  */
 exports.deleteAssignment = async (req, res) => {
   try {
     const { id } = req.params;
-
     const assignment = await FormAssignment.findById(id);
-    if (!assignment) {
-      return res.status(404).json({ success: false, message: "Assignment not found" });
-    }
+    if (!assignment) return res.status(404).json({ success: false, message: "Assignment not found" });
 
     await assignment.deleteOne();
     res.status(200).json({ success: true, message: "Assignment deleted successfully" });
   } catch (error) {
     console.error("❌ Error in deleteAssignment:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+/**
+ * Get assignment by token (frontend uses after login to fetch form)
+ */
+exports.getAssignmentByToken = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const assignment = await FormAssignment.findOne({ surveyToken: token }).populate("formId");
+
+    if (!assignment) return res.status(404).json({ success: false, message: "Invalid or expired assignment token" });
+
+    res.status(200).json({ success: true, assignment });
+  } catch (error) {
+    console.error("❌ Error in getAssignmentByToken:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };

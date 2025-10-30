@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import {
   AppBar,
@@ -12,15 +12,34 @@ import useAuth from "../hooks/useAuth";
 
 export default function Navbar() {
   const { token, role, logout } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [links, setLinks] = useState([]);
 
   useEffect(() => {
-    setIsAdmin(role === "admin");
-  }, [role]);
+    if (!token) {
+      setLinks([
+        { label: "Login", to: "/login" },
+        { label: "Register", to: "/register" },
+      ]);
+    } else if (role === "admin") {
+      setLinks([
+        { label: "Manage Forms", to: "/admin/manage-forms" },
+        { label: "Create Form", to: "/admin/create-form" },
+        { label: "Assign Form", to: "/admin/assign-form" },
+        { label: "Responses", to: "/admin/responses" },
+        { label: "Send Mail", to: "/admin/send-mail" },
+      ]);
+    } else {
+      setLinks([
+        { label: "User Dashboard", to: "/user" },
+        { label: "Profile", to: "/profile" },
+      ]);
+    }
+  }, [token, role]);
 
   const handleLogout = () => {
-    logout(); // clears user + localStorage
+    logout();
     navigate("/login");
   };
 
@@ -54,48 +73,40 @@ export default function Navbar() {
           Dashforge
         </Typography>
 
-        {/* ===== Center: Nav Links (visible only when logged in) ===== */}
+        {/* ===== Center: Role-Based Tabs ===== */}
         {token && (
           <Stack direction="row" spacing={2}>
-            <Button component={Link} to="/dashboard" sx={{ color: "white" }}>
-              Dashboard
-            </Button>
-            <Button component={Link} to="/form" sx={{ color: "white" }}>
-              Forms
-            </Button>
-            {isAdmin && (
+            {links.map((link) => (
               <Button
+                key={link.to}
                 component={Link}
-                to="/admin-dashboard"
-                sx={{ color: "white" }}
+                to={link.to}
+                sx={{
+                  color:
+                    location.pathname === link.to
+                      ? "yellow"
+                      : "white",
+                  fontWeight:
+                    location.pathname === link.to ? "bold" : "normal",
+                }}
               >
-                Admin Panel
+                {link.label}
               </Button>
-            )}
+            ))}
           </Stack>
         )}
 
-        {/* ===== Right: Auth/User Section ===== */}
+        {/* ===== Right: Auth Actions ===== */}
         <Box>
           {token ? (
-            <Stack direction="row" spacing={2}>
-              <Button component={Link} to="/profile" sx={{ color: "white" }}>
-                Profile
-              </Button>
-              {!isAdmin && (
-                <Button component={Link} to="/user" sx={{ color: "white" }}>
-                  User
-                </Button>
-              )}
-              <Button
-                onClick={handleLogout}
-                variant="contained"
-                color="error"
-                sx={{ fontWeight: "bold" }}
-              >
-                Logout
-              </Button>
-            </Stack>
+            <Button
+              onClick={handleLogout}
+              variant="contained"
+              color="error"
+              sx={{ fontWeight: "bold" }}
+            >
+              Logout
+            </Button>
           ) : (
             <Stack direction="row" spacing={2}>
               <Button component={Link} to="/login" sx={{ color: "white" }}>

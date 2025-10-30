@@ -230,7 +230,7 @@ export default function LoginForm() {
         console.log("✅ Full user object stored:", userWithToken);
 
         toast.success("Login successful!");
-        navigate("/user");
+        navigate("/dashboard");
       } else {
         toast.error("Login failed: " + (data.message || "Invalid credentials"));
       }

@@ -1,23 +1,29 @@
 import React, { lazy, Suspense } from "react";
-import { Routes, Route,  } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-// UDF components (critical)
-import SavedUDFForms from "././Pages/Admin/Dashboard/UDF/SavedUDFForms";
+// Critical UDF component (kept eagerly loaded if used often)
+import SavedUDFForms from "./Pages/Admin/Dashboard/UDF/SavedUDFForms";
 
 // Lazy-loaded components
 const DashboardWrapper = lazy(() => import("./Helper/DashboardWrapper"));
-const LoginForm = lazy(() => import("./Components/LoginForm"));
-const RegisterForm = lazy(() => import("././Pages/RegisterPage/RegisterPage"));
+const LoginForm = lazy(() => import("./Pages/LoginPage/LoginPage"));
+const RegisterForm = lazy(() => import("./Pages/RegisterPage/RegisterPage"));
 const Layout = lazy(() => import("./Components/Common/Layout"));
-const UDFBuilder = lazy(() => import("././Pages/Admin/Dashboard/UDF/UDFBuilder"));
-const UserFormRenderer = lazy(() => import("./Pages/User/UserFormRenderer")); // ← New
+const UDFBuilder = lazy(() => import("./Pages/Admin/Dashboard/UDF/UDFBuilder"));
+const UserFormRenderer = lazy(() => import("./Pages/User/UserFormRenderer"));
+
+// ✅ New admin-related lazy imports
+const AdminDashboard = lazy(() => import("./Pages/Admin/Dashboard/AdminDashboard"));
+const AssignFormSection = lazy(() => import("./Pages/Admin/Dashboard/AssignFormSection"));
+const ResponsesSection = lazy(() => import("./Pages/Admin/Dashboard/ResponsesSection"));
+const SendMailSection = lazy(() => import("./Pages/Admin/Dashboard/SendMailSection"));
 
 function App() {
   return (
     <div>
-      <Suspense fallback={<p>Loading...</p>}>
+      <Suspense fallback={<p style={{ textAlign: "center", marginTop: "20%" }}>Loading...</p>}>
         <Routes>
           {/* ---------- Public Routes ---------- */}
           <Route path="/" element={<LoginForm />} />
@@ -26,15 +32,23 @@ function App() {
 
           {/* ---------- Protected Routes with Layout ---------- */}
           <Route element={<Layout />}>
+            {/* User routes */}
             <Route path="/dashboard" element={<DashboardWrapper />} />
-
-            {/* Route to handle /form?token=xxx and redirect to dashboard */}
             <Route path="/form" element={<UserFormRenderer />} />
-
-            {/* UDF-related Routes */}
             <Route path="/create-form" element={<UDFBuilder />} />
             <Route path="/udf/forms" element={<SavedUDFForms />} />
-            <Route path="/udf/fill/:formId" element={<DashboardWrapper />} /> {/* Optional */}
+            <Route path="/udf/fill/:formId" element={<DashboardWrapper />} />
+
+            {/* ---------- Admin Dashboard Routes ---------- */}
+            <Route path="/admin-dashboard" element={<AdminDashboard />}>
+              {/* Default redirect to manage */}
+              <Route index element={<Navigate to="manage" replace />} />
+              <Route path="manage" element={<SavedUDFForms />} />
+              <Route path="create" element={<UDFBuilder />} />
+              <Route path="assign" element={<AssignFormSection />} />
+              <Route path="responses" element={<ResponsesSection />} />
+              <Route path="mail" element={<SendMailSection />} />
+            </Route>
           </Route>
         </Routes>
       </Suspense>

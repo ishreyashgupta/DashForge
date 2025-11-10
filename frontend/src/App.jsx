@@ -40,15 +40,14 @@ function App() {
             <Route path="/udf/fill/:formId" element={<DashboardWrapper />} />
 
             {/* ---------- Admin Dashboard Routes ---------- */}
-            <Route path="/admin-dashboard" element={<AdminDashboard />}>
-              {/* Default redirect to manage */}
-              <Route index element={<Navigate to="manage" replace />} />
-              <Route path="manage" element={<SavedUDFForms />} />
-              <Route path="create" element={<UDFBuilder />} />
-              <Route path="assign" element={<AssignFormSection />} />
-              <Route path="responses" element={<ResponsesSection />} />
-              <Route path="mail" element={<SendMailSection />} />
-            </Route>
+            <Route path="/admin/dashboard" element={<AdminDashboard />}>
+  <Route index element={<SavedUDFForms />} /> {/* Default: Manage Forms */}
+  <Route path="create-form" element={<UDFBuilder />} />
+  <Route path="assign-form" element={<AssignFormSection />} />
+  <Route path="responses" element={<ResponsesSection />} />
+  <Route path="send-mail" element={<SendMailSection />} />
+</Route>
+
           </Route>
         </Routes>
       </Suspense>

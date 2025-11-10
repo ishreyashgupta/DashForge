@@ -7,48 +7,68 @@ import {
   Button,
   Stack,
   Box,
+  IconButton,
+  Menu,
+  MenuItem,
 } from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
 import useAuth from "../hooks/useAuth";
 
 export default function Navbar() {
-  const { token, role, logout } = useAuth();
+  const { role, logout } = useAuth(); // ✅ only role + logout
   const navigate = useNavigate();
   const location = useLocation();
+
   const [links, setLinks] = useState([]);
+  const [anchorEl, setAnchorEl] = useState(null);
 
+  // --- Determine role-based navigation links ---
   useEffect(() => {
-    if (!token) {
-      setLinks([
-        { label: "Login", to: "/login" },
-        { label: "Register", to: "/register" },
-      ]);
-    } else if (role === "admin") {
-      setLinks([
-        { label: "Manage Forms", to: "/admin/manage-forms" },
-        { label: "Create Form", to: "/admin/create-form" },
-        { label: "Assign Form", to: "/admin/assign-form" },
-        { label: "Responses", to: "/admin/responses" },
-        { label: "Send Mail", to: "/admin/send-mail" },
-      ]);
-    } else {
-      setLinks([
-        { label: "User Dashboard", to: "/user" },
-        { label: "Profile", to: "/profile" },
-      ]);
-    }
-  }, [token, role]);
+    switch (role) {
+      case "admin":
+        setLinks([
+          { label: "Dashboard", to: "/admin/dashboard" },
+          { label: "Create Form", to: "/admin/dashboard/create-form" },
+          { label: "Assign Form", to: "/admin/dashboard/assign-form" },
+          { label: "Responses", to: "/admin/dashboard/responses" },
+          { label: "Send Mail", to: "/admin/dashboard/send-mail" },
+        ]);
+        break;
 
+      case "user":
+        setLinks([
+          { label: "Dashboard", to: "/user/dashboard" },
+          { label: "My Forms", to: "/user/forms" },
+          { label: "Profile", to: "/profile" },
+        ]);
+        break;
+
+      default:
+        setLinks([
+          { label: "Login", to: "/login" },
+          { label: "Register", to: "/register" },
+        ]);
+    }
+  }, [role]);
+
+  // --- Handle Logout ---
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
+  // --- Handle Mobile Menu ---
+  const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
+  const handleMenuClose = () => setAnchorEl(null);
+
+  const isLoggedIn = role === "admin" || role === "user";
+
   return (
     <AppBar
-      position="static"
+      position="sticky"
       sx={{
         background: "linear-gradient(90deg, #4b6cb7 0%, #182848 100%)",
-        boxShadow: 2,
+        boxShadow: 3,
       }}
     >
       <Toolbar
@@ -73,9 +93,13 @@ export default function Navbar() {
           Dashforge
         </Typography>
 
-        {/* ===== Center: Role-Based Tabs ===== */}
-        {token && (
-          <Stack direction="row" spacing={2}>
+        {/* ===== Center: Desktop Links ===== */}
+        {isLoggedIn && (
+          <Stack
+            direction="row"
+            spacing={2}
+            sx={{ display: { xs: "none", md: "flex" } }}
+          >
             {links.map((link) => (
               <Button
                 key={link.to}
@@ -83,11 +107,10 @@ export default function Navbar() {
                 to={link.to}
                 sx={{
                   color:
-                    location.pathname === link.to
-                      ? "yellow"
-                      : "white",
+                    location.pathname === link.to ? "cyan" : "white",
                   fontWeight:
                     location.pathname === link.to ? "bold" : "normal",
+                  textTransform: "none",
                 }}
               >
                 {link.label}
@@ -97,13 +120,13 @@ export default function Navbar() {
         )}
 
         {/* ===== Right: Auth Actions ===== */}
-        <Box>
-          {token ? (
+        <Box sx={{ display: { xs: "none", md: "flex" }, gap: 2 }}>
+          {isLoggedIn ? (
             <Button
               onClick={handleLogout}
               variant="contained"
               color="error"
-              sx={{ fontWeight: "bold" }}
+              sx={{ fontWeight: "bold", textTransform: "none" }}
             >
               Logout
             </Button>
@@ -118,6 +141,50 @@ export default function Navbar() {
             </Stack>
           )}
         </Box>
+
+        {/* ===== Mobile Menu Icon ===== */}
+        {isLoggedIn && (
+          <IconButton
+            color="inherit"
+            edge="end"
+            sx={{ display: { xs: "flex", md: "none" } }}
+            onClick={handleMenuOpen}
+          >
+            <MenuIcon />
+          </IconButton>
+        )}
+
+        {/* ===== Mobile Dropdown ===== */}
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={handleMenuClose}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        >
+          {links.map((link) => (
+            <MenuItem
+              key={link.to}
+              component={Link}
+              to={link.to}
+              onClick={handleMenuClose}
+              selected={location.pathname === link.to}
+            >
+              {link.label}
+            </MenuItem>
+          ))}
+
+          {isLoggedIn && (
+            <MenuItem
+              onClick={() => {
+                handleLogout();
+                handleMenuClose();
+              }}
+              sx={{ color: "error.main" }}
+            >
+              Logout
+            </MenuItem>
+          )}
+        </Menu>
       </Toolbar>
     </AppBar>
   );

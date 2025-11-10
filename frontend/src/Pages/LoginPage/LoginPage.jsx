@@ -219,21 +219,28 @@ export default function LoginForm() {
       console.log("🔐 Login response from server:", data);
 
       if (response.ok && data.token && data.user) {
-        const userWithToken = {
-          ...data.user,
-          token: data.token,
-        };
+  const userWithToken = {
+    ...data.user,
+    token: data.token,
+  };
 
-        localStorage.setItem("user", JSON.stringify(userWithToken));
+  localStorage.setItem("user", JSON.stringify(userWithToken));
 
-        console.log("✅ Token stored:", userWithToken.token);
-        console.log("✅ Full user object stored:", userWithToken);
+  console.log("✅ Token stored:", userWithToken.token);
+  console.log("✅ Full user object stored:", userWithToken);
 
-        toast.success("Login successful!");
-        navigate("/dashboard");
-      } else {
-        toast.error("Login failed: " + (data.message || "Invalid credentials"));
-      }
+  toast.success("Login successful!");
+
+  // ✅ Role-based navigation
+  if (userWithToken.role === "admin" || userWithToken.isAdmin) {
+    navigate("/admin/dashboard");
+  } else {
+    navigate("/dashboard");
+  }
+} else {
+  toast.error("Login failed: " + (data.message || "Invalid credentials"));
+}
+
     } catch (error) {
       console.error("❌ Fetch error during login:", error);
       toast.error("Something went wrong during login.");

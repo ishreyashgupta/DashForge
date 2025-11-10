@@ -1,34 +1,22 @@
 import React, { useState, useEffect } from "react";
 import {
-  Box,
-  Button,
-  TextField,
-  Typography,
-  Select,
-  MenuItem,
-  Checkbox,
-  FormControlLabel,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Paper,
-  Stack,
+  Box, Button, TextField, Typography, Select, MenuItem, Checkbox,
+  FormControlLabel, IconButton, Dialog, DialogTitle, DialogContent,
+  DialogActions, Paper, Stack, Fab, Table, TableHead, TableRow,
+  TableCell, TableBody, TableContainer
 } from "@mui/material";
-import { ArrowUpward, ArrowDownward, Delete, AddCircleOutline } from "@mui/icons-material";
-import { getMeta, createUDFForm, updateUDFForm } from "../../../../services/udfservice";
+import { Add, Edit, Delete, DragIndicator } from "@mui/icons-material";
+import { createUDFForm, updateUDFForm } from "../../../../services/udfservice";
 import UDFFormRenderer from "./UDFFormRenderer";
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
-// Unique ID helper
 const genId = () => Math.random().toString(36).slice(2);
 
-// The best-practice field structure
 const emptyField = () => ({
   id: genId(),
   fieldName: "",
   label: "",
-  inputType: "text", // Only one selector: inputType
+  inputType: "text",
   fieldType: "input",
   placeholder: "",
   helpText: "",
@@ -61,7 +49,10 @@ const INPUT_TYPES = [
 export default function FormBuilderMUI({ existingForm, onSubmit, onCancel }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [fields, setFields] = useState([emptyField()]);
+  const [fields, setFields] = useState([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingField, setEditingField] = useState(null);
+  const [formData, setFormData] = useState(emptyField());
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -72,80 +63,67 @@ export default function FormBuilderMUI({ existingForm, onSubmit, onCancel }) {
       setName(existingForm.name || "");
       setDescription(existingForm.description || "");
       setFields(
-        existingForm.fields?.length
-          ? existingForm.fields.map(f => ({
-              ...emptyField(),
-              ...f,
-              id: genId(),
-              validation: { ...emptyField().validation, ...(f.validation || {}) },
-              options: Array.isArray(f.options) ? f.options : [],
-            }))
-          : [emptyField()]
+        existingForm.fields?.map(f => ({
+          ...emptyField(),
+          ...f,
+          id: genId(),
+          options: Array.isArray(f.options) ? f.options : [],
+          validation: { ...emptyField().validation, ...(f.validation || {}) },
+        })) || []
       );
     }
   }, [existingForm]);
 
-  // Field helpers
-  const updateField = (id, patch) =>
-    setFields(flds => flds.map(f => {
-      // If inputType changes, clear options for non-option types
-      if (patch.inputType && !["select", "multiselect", "radio", "checkbox"].includes(patch.inputType)) {
-        return { ...f, ...patch, options: [] };
-      }
-      return f.id === id ? { ...f, ...patch } : f;
-    }));
-
-  const addField = () => setFields(flds => [...flds, emptyField()]);
-  const addPageBreak = () => setFields(flds => [
-    ...flds,
-    { ...emptyField(), id: genId(), fieldType: "pageBreak", fieldName: `page_break_${flds.length + 1}`, label: "Page Break" }
-  ]);
-  const removeField = (id) => setFields(flds => flds.length > 1 ? flds.filter(f => f.id !== id) : flds);
-
-  // Option helpers
-  const addOption = (id) =>
-    updateField(id, { options: [...fields.find(f => f.id === id).options, { label: "", value: "" }] });
-  const updateOption = (fid, oid, patch) => {
-    const field = fields.find(f => f.id === fid);
-    const options = field.options.map((o, i) => (i === oid ? { ...o, ...patch } : o));
-    updateField(fid, { options });
-  };
-  const removeOption = (fid, oid) => {
-    const field = fields.find(f => f.id === fid);
-    const options = field.options.filter((_, i) => i !== oid);
-    updateField(fid, { options });
+  // Dialog controls
+  const openDialog = (field = null) => {
+    setEditingField(field);
+    setFormData(field ? { ...field } : emptyField());
+    setDialogOpen(true);
   };
 
-  // Move fields
-  const moveField = (fromIdx, toIdx) => {
-    setFields(flds => {
-      const arr = [...flds];
-      const [moved] = arr.splice(fromIdx, 1);
-      arr.splice(toIdx, 0, moved);
-      return arr;
-    });
+  const handleDialogSave = () => {
+    if (editingField) {
+      setFields(prev => prev.map(f => (f.id === editingField.id ? { ...formData } : f)));
+    } else {
+      setFields(prev => [...prev, { ...formData, id: genId() }]);
+    }
+    setDialogOpen(false);
+    setEditingField(null);
+    setFormData(emptyField());
   };
 
-  // Validation
+  const handleDelete = id => {
+    if (window.confirm("Are you sure you want to delete this field?")) {
+      setFields(prev => prev.filter(f => f.id !== id));
+    }
+  };
+
+  const handleInlineChange = (id, key, value) => {
+    setFields(prev => prev.map(f => (f.id === id ? { ...f, [key]: value } : f)));
+  };
+
   const validateForm = () => {
     if (!name.trim()) return "Form name required";
+    if (fields.length === 0) return "At least one field required";
     for (const f of fields)
-      if (f.fieldType === "input" && !f.fieldName.trim()) return "Each input needs a name";
+      if (!f.fieldName.trim()) return "Each field needs a name";
     return "";
   };
 
-  // Save
   const onSave = async () => {
-    setError(""); setMessage(""); setSaving(true);
-    const errMsg = validateForm();
-    if (errMsg) { setError(errMsg); setSaving(false); return; }
+    setError("");
+    setMessage("");
+    setSaving(true);
+    const err = validateForm();
+    if (err) {
+      setError(err);
+      setSaving(false);
+      return;
+    }
     try {
       const cleaned = fields.map(f => {
         const v = { ...f };
         delete v.id;
-        if (v.fieldType === "pageBreak") v.validation = {};
-        if (!["select", "multiselect", "radio", "checkbox"].includes(v.inputType)) v.options = [];
-        if (v.validation) ["min", "max", "minLength", "maxLength"].forEach(key => v.validation[key] = v.validation[key] !== "" ? Number(v.validation[key]) : undefined);
         return v;
       });
       const payload = { name, description, fields: cleaned };
@@ -156,214 +134,294 @@ export default function FormBuilderMUI({ existingForm, onSubmit, onCancel }) {
       } else {
         res = await createUDFForm(payload);
         setMessage(`Saved form: ${res.name}`);
-        setName(""); setDescription(""); setFields([emptyField()]);
+        setName("");
+        setDescription("");
+        setFields([]);
       }
       if (onSubmit) onSubmit(res);
-    } catch (e) { setError(e.message || "Failed to save form"); }
-    finally { setSaving(false); }
+    } catch (e) {
+      setError(e.message || "Failed to save form");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  // === Field Editor (full stack UI inside modal) ===
+  const renderFullFieldEditor = () => (
+    <Stack spacing={2} sx={{ mt: 1 }}>
+      <TextField label="Field Name" value={formData.fieldName} onChange={e => setFormData({ ...formData, fieldName: e.target.value })} required />
+      <TextField label="Label" value={formData.label} onChange={e => setFormData({ ...formData, label: e.target.value })} />
+      <Select value={formData.inputType} onChange={e => setFormData({ ...formData, inputType: e.target.value })}>
+        {INPUT_TYPES.map(it => (
+          <MenuItem key={it.value} value={it.value}>{it.label}</MenuItem>
+        ))}
+      </Select>
+      <Stack direction="row" spacing={2}>
+        <FormControlLabel
+          control={<Checkbox checked={formData.required} onChange={e => setFormData({ ...formData, required: e.target.checked })} />}
+          label="Required"
+        />
+        <FormControlLabel
+          control={<Checkbox checked={formData.visible} onChange={e => setFormData({ ...formData, visible: e.target.checked })} />}
+          label="Visible"
+        />
+      </Stack>
+
+      <TextField label="Placeholder" value={formData.placeholder} onChange={e => setFormData({ ...formData, placeholder: e.target.value })} />
+      <TextField label="Help Text" value={formData.helpText} onChange={e => setFormData({ ...formData, helpText: e.target.value })} />
+      <TextField label="Default Value" value={formData.defaultValue} onChange={e => setFormData({ ...formData, defaultValue: e.target.value })} />
+
+      {/* Validation fields */}
+      {formData.inputType === "number" && (
+        <Stack direction="row" spacing={2}>
+          <TextField
+            label="Min"
+            type="number"
+            value={formData.validation.min ?? ""}
+            onChange={e => setFormData({
+              ...formData,
+              validation: { ...formData.validation, min: e.target.value },
+            })}
+          />
+          <TextField
+            label="Max"
+            type="number"
+            value={formData.validation.max ?? ""}
+            onChange={e => setFormData({
+              ...formData,
+              validation: { ...formData.validation, max: e.target.value },
+            })}
+          />
+        </Stack>
+      )}
+
+      {(formData.inputType === "text" || formData.inputType === "textarea" || formData.inputType === "email") && (
+        <Stack direction="row" spacing={2}>
+          <TextField
+            label="Min Length"
+            type="number"
+            value={formData.validation.minLength ?? ""}
+            onChange={e => setFormData({
+              ...formData,
+              validation: { ...formData.validation, minLength: e.target.value },
+            })}
+          />
+          <TextField
+            label="Max Length"
+            type="number"
+            value={formData.validation.maxLength ?? ""}
+            onChange={e => setFormData({
+              ...formData,
+              validation: { ...formData.validation, maxLength: e.target.value },
+            })}
+          />
+          <TextField
+            label="Pattern"
+            value={formData.validation.pattern}
+            onChange={e => setFormData({
+              ...formData,
+              validation: { ...formData.validation, pattern: e.target.value },
+            })}
+          />
+        </Stack>
+      )}
+
+      {["select", "multiselect", "radio", "checkbox"].includes(formData.inputType) && (
+        <Box>
+          <Typography fontWeight="bold">Options</Typography>
+          {formData.options.map((o, idx) => (
+            <Stack direction="row" spacing={1} key={idx} alignItems="center">
+              <TextField
+                label="Label"
+                value={o.label}
+                onChange={e => {
+                  const newOpts = [...formData.options];
+                  newOpts[idx].label = e.target.value;
+                  setFormData({ ...formData, options: newOpts });
+                }}
+              />
+              <TextField
+                label="Value"
+                value={o.value}
+                onChange={e => {
+                  const newOpts = [...formData.options];
+                  newOpts[idx].value = e.target.value;
+                  setFormData({ ...formData, options: newOpts });
+                }}
+              />
+              <IconButton color="error" onClick={() => {
+                const newOpts = formData.options.filter((_, i) => i !== idx);
+                setFormData({ ...formData, options: newOpts });
+              }}>
+                <Delete />
+              </IconButton>
+            </Stack>
+          ))}
+          <Button
+            sx={{ mt: 1 }}
+            variant="outlined"
+            onClick={() => setFormData({
+              ...formData,
+              options: [...formData.options, { label: "", value: "" }],
+            })}
+          >
+            Add Option
+          </Button>
+        </Box>
+      )}
+    </Stack>
+  );
 
   return (
     <Box sx={{ maxWidth: 1000, mx: "auto", p: 2 }}>
       <Typography variant="h4" gutterBottom>
         {existingForm ? "Edit Form" : "Create New Form"}
       </Typography>
-      <Stack spacing={2}>
-        <TextField
-          label="Form Name"
-          value={name}
-          onChange={e => setName(e.target.value)}
-          required
-        />
-        <TextField
-          label="Description"
-          multiline
-          minRows={2}
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-        />
+
+      <Stack spacing={2} sx={{ mb: 3 }}>
+        <TextField label="Form Name" value={name} onChange={e => setName(e.target.value)} required />
+        <TextField label="Description" multiline minRows={2} value={description} onChange={e => setDescription(e.target.value)} />
       </Stack>
-      <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>Fields</Typography>
-      {fields.map((f, idx) => (
-        <Paper key={f.id} sx={{ p: 2, mb: 2, background: f.fieldType === "pageBreak" ? "#f7f7f7" : "white" }}>
-          {f.fieldType === "pageBreak" ? (
-            <Typography align="center" fontWeight="bold">--- Page Break ---</Typography>
-          ) : (
-            <>
-              <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-                <TextField
-                  label="Field Name"
-                  value={f.fieldName}
-                  onChange={e => updateField(f.id, { fieldName: e.target.value })}
-                  required
-                  sx={{ flex: 1 }}
-                />
-                <TextField
-                  label="Label"
-                  value={f.label}
-                  onChange={e => updateField(f.id, { label: e.target.value })}
-                  sx={{ flex: 1 }}
-                />
-                {/* Only one selector: Input Type */}
-                <Select
-                  label="Input Type"
-                  value={f.inputType}
-                  onChange={e => updateField(f.id, { inputType: e.target.value })}
-                  sx={{ flex: 1, minWidth: 120 }}
-                >
-                  {INPUT_TYPES.map(it => (
-                    <MenuItem key={it.value} value={it.value}>{it.label}</MenuItem>
+
+      <Typography variant="h6" gutterBottom>Fields</Typography>
+
+      <TableContainer component={Paper} sx={{ mb: 3 }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell align="center"></TableCell>
+              <TableCell>#</TableCell>
+              <TableCell>Field Name</TableCell>
+              <TableCell>Label</TableCell>
+              <TableCell>Type</TableCell>
+              <TableCell align="center">Required</TableCell>
+              <TableCell align="center">Visible</TableCell>
+              <TableCell align="center">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+
+          {/* Drag and Drop TableBody */}
+          <DragDropContext
+            onDragEnd={(result) => {
+              if (!result.destination) return;
+              const reordered = Array.from(fields);
+              const [moved] = reordered.splice(result.source.index, 1);
+              reordered.splice(result.destination.index, 0, moved);
+              setFields(reordered);
+            }}
+          >
+            <Droppable droppableId="fields-table">
+              {(provided) => (
+                <TableBody ref={provided.innerRef} {...provided.droppableProps}>
+                  {fields.map((f, idx) => (
+                    <Draggable key={f.id} draggableId={f.id} index={idx}>
+                      {(provided, snapshot) => (
+                        <TableRow
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          sx={{
+                            backgroundColor: snapshot.isDragging ? "#f7f7f7" : "inherit",
+                            cursor: "grab",
+                            transition: "background-color 0.2s ease",
+                          }}
+                        >
+                          <TableCell
+                            {...provided.dragHandleProps}
+                            align="center"
+                            sx={{ width: 40, color: "#888" }}
+                          >
+                            <DragIndicator />
+                          </TableCell>
+
+                          <TableCell>{idx + 1}</TableCell>
+                          <TableCell>{f.fieldName}</TableCell>
+                          <TableCell>{f.label}</TableCell>
+                          <TableCell>{f.inputType}</TableCell>
+                          <TableCell align="center">
+                            <Checkbox
+                              checked={f.required}
+                              onChange={(e) =>
+                                handleInlineChange(f.id, "required", e.target.checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell align="center">
+                            <Checkbox
+                              checked={f.visible}
+                              onChange={(e) =>
+                                handleInlineChange(f.id, "visible", e.target.checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell align="center">
+                            <IconButton color="primary" onClick={() => openDialog(f)}>
+                              <Edit />
+                            </IconButton>
+                            <IconButton color="error" onClick={() => handleDelete(f.id)}>
+                              <Delete />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Draggable>
                   ))}
-                </Select>
-                <FormControlLabel
-                  control={<Checkbox checked={f.visible} onChange={e => updateField(f.id, { visible: e.target.checked })} />}
-                  label="Visible"
-                />
-                <FormControlLabel
-                  control={<Checkbox checked={f.required} onChange={e => updateField(f.id, { required: e.target.checked })} />}
-                  label="Required"
-                />
-              </Stack>
-              <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-                <TextField
-                  label="Placeholder"
-                  value={f.placeholder}
-                  onChange={e => updateField(f.id, { placeholder: e.target.value })}
-                  sx={{ flex: 1 }}
-                />
-                <TextField
-                  label="Help Text"
-                  value={f.helpText}
-                  onChange={e => updateField(f.id, { helpText: e.target.value })}
-                  sx={{ flex: 1 }}
-                />
-                <TextField
-                  label="Default Value"
-                  value={f.defaultValue}
-                  onChange={e => updateField(f.id, { defaultValue: e.target.value })}
-                  sx={{ flex: 1 }}
-                />
-              </Stack>
-              {/* Validation: show relevant controls based on inputType */}
-              {f.inputType === "number" && (
-                <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-                  <TextField
-                    label="Min"
-                    type="number"
-                    value={f.validation.min ?? ""}
-                    onChange={e => updateField(f.id, { validation: { ...f.validation, min: e.target.value } })}
-                    sx={{ width: 100 }}
-                  />
-                  <TextField
-                    label="Max"
-                    type="number"
-                    value={f.validation.max ?? ""}
-                    onChange={e => updateField(f.id, { validation: { ...f.validation, max: e.target.value } })}
-                    sx={{ width: 100 }}
-                  />
-                </Stack>
+                  {provided.placeholder}
+                  {fields.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} align="center">
+                        No fields added yet
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
               )}
-              {(f.inputType === "text" || f.inputType === "textarea" || f.inputType === "email") && (
-                <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-                  <TextField
-                    label="Min Length"
-                    type="number"
-                    value={f.validation.minLength ?? ""}
-                    onChange={e => updateField(f.id, { validation: { ...f.validation, minLength: e.target.value } })}
-                    sx={{ width: 120 }}
-                  />
-                  <TextField
-                    label="Max Length"
-                    type="number"
-                    value={f.validation.maxLength ?? ""}
-                    onChange={e => updateField(f.id, { validation: { ...f.validation, maxLength: e.target.value } })}
-                    sx={{ width: 120 }}
-                  />
-                  <TextField
-                    label="Pattern"
-                    value={f.validation.pattern}
-                    onChange={e => updateField(f.id, { validation: { ...f.validation, pattern: e.target.value } })}
-                    sx={{ flex: 1 }}
-                  />
-                </Stack>
-              )}
-              {/* Options for select/radio/checkbox/multiselect */}
-              {["select", "multiselect", "radio", "checkbox"].includes(f.inputType) && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography fontWeight="bold">Options</Typography>
-                  {f.options.map((o, oIdx) => (
-                    <Stack direction="row" spacing={1} alignItems="center" key={oIdx} sx={{ mt: 1 }}>
-                      <TextField
-                        label="Label"
-                        value={o.label}
-                        onChange={e => updateOption(f.id, oIdx, { label: e.target.value })}
-                        sx={{ flex: 1 }}
-                      />
-                      <TextField
-                        label="Value"
-                        value={o.value}
-                        onChange={e => updateOption(f.id, oIdx, { value: e.target.value })}
-                        sx={{ flex: 1 }}
-                      />
-                      <IconButton onClick={() => removeOption(f.id, oIdx)} color="error">
-                        <Delete />
-                      </IconButton>
-                    </Stack>
-                  ))}
-                  <Button
-                    startIcon={<AddCircleOutline />}
-                    variant="outlined"
-                    sx={{ mt: 1 }}
-                    onClick={() => addOption(f.id)}
-                  >
-                    Add Option
-                  </Button>
-                </Box>
-              )}
-            </>
-          )}
-          {/* Move and remove */}
-          <Stack direction="row" spacing={1}>
-            <IconButton disabled={idx === 0} onClick={() => moveField(idx, idx - 1)}>
-              <ArrowUpward />
-            </IconButton>
-            <IconButton disabled={idx === fields.length - 1} onClick={() => moveField(idx, idx + 1)}>
-              <ArrowDownward />
-            </IconButton>
-            <IconButton onClick={() => removeField(f.id)} color="error">
-              <Delete />
-            </IconButton>
-          </Stack>
-        </Paper>
-      ))}
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        <Button variant="contained" onClick={addField}>Add Field</Button>
-        <Button variant="contained" onClick={addPageBreak}>Add Page Break</Button>
-      </Stack>
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+            </Droppable>
+          </DragDropContext>
+        </Table>
+      </TableContainer>
+
+      <Stack direction="row" spacing={2}>
+        <Button variant="contained" onClick={() => openDialog()}>Add Field</Button>
         <Button variant="contained" color="primary" onClick={onSave} disabled={saving}>
           {saving ? "Saving..." : existingForm ? "Update Form" : "Save Form"}
         </Button>
-        {onCancel && (
-          <Button variant="outlined" color="secondary" onClick={onCancel}>Cancel</Button>
-        )}
+        {onCancel && <Button variant="outlined" color="secondary" onClick={onCancel}>Cancel</Button>}
         <Button variant="outlined" onClick={() => setPreviewOpen(true)}>Preview</Button>
       </Stack>
+
       {message && <Typography color="success.main">{message}</Typography>}
       {error && <Typography color="error.main">{error}</Typography>}
-      {/* Preview Dialog */}
+
+      {/* Floating Add Button */}
+      <Fab color="primary" onClick={() => openDialog()} sx={{ position: "fixed", bottom: 32, right: 32 }}>
+        <Add />
+      </Fab>
+
+      {/* Full-Feature Modal */}
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>{editingField ? "Edit Field" : "Add New Field"}</DialogTitle>
+        <DialogContent
+          dividers
+          sx={{
+            maxHeight: "70vh",
+            overflowY: "auto",
+          }}
+        >
+          {renderFullFieldEditor()}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleDialogSave}>
+            {editingField ? "Update Field" : "Add Field"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Preview */}
       <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>Form Preview — {name || "Untitled"}</DialogTitle>
         <DialogContent>
-          <UDFFormRenderer
-            form={{ name, description, fields }}
-            isEditing={false}
-            previewMode={true}
-            onSubmit={data => {
-              console.log("Preview submit", data);
-              setPreviewOpen(false);
-            }}
-          />
+          <UDFFormRenderer form={{ name, description, fields }} previewMode />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPreviewOpen(false)}>Close</Button>

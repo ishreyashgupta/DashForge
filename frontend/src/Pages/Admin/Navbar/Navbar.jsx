@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   AppBar,
   Toolbar,
@@ -17,29 +17,26 @@ function AdminNavbar() {
   const { token, role, logout } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const location = useLocation();
 
   useEffect(() => {
     setIsAdmin(!!token && role === "admin");
   }, [token, role]);
 
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
+  const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
+  const handleMenuClose = () => setAnchorEl(null);
 
   if (!isAdmin) return null; // Hide Navbar if not admin
 
   const adminLinks = [
-    { label: "Dashboard", to: "/admin-dashboard" },
-    { label: "Manage Forms", to: "/admin/forms" },
-    { label: "Create Form", to: "/admin/create-form" },
-    { label: "Assign Form", to: "/admin/assign-form" },
-    { label: "View Responses", to: "/admin/responses" },
-    { label: "Send Mail", to: "/admin/send-mail" },
+    { label: "Dashboard", to: "/admin/dashboard" },
+    { label: "Manage Forms", to: "/admin/dashboard" }, // default tab
+    { label: "Create Form", to: "/admin/dashboard/create-form" },
+    { label: "Assign Form", to: "/admin/dashboard/assign-form" },
+    { label: "View Responses", to: "/admin/dashboard/responses" },
+    { label: "Send Mail", to: "/admin/dashboard/send-mail" },
     { label: "Users", to: "/admin/users" },
-    {label: "setting",to: "/admin/setting"},
+    { label: "Settings", to: "/admin/setting" },
   ];
 
   return (
@@ -49,7 +46,7 @@ function AdminNavbar() {
         <Typography
           variant="h6"
           component={Link}
-          to="/admin-dashboard"
+          to="/admin/dashboard"
           sx={{
             textDecoration: "none",
             color: "primary.main",
@@ -66,8 +63,17 @@ function AdminNavbar() {
               key={link.to}
               component={Link}
               to={link.to}
-              color="inherit"
-              sx={{ textTransform: "none" }}
+              color={
+                location.pathname === link.to ? "primary" : "inherit"
+              } // highlight active
+              sx={{
+                textTransform: "none",
+                fontWeight: location.pathname === link.to ? "bold" : "normal",
+                borderBottom:
+                  location.pathname === link.to
+                    ? "2px solid #1976d2"
+                    : "2px solid transparent",
+              }}
             >
               {link.label}
             </Button>
@@ -112,6 +118,7 @@ function AdminNavbar() {
               component={Link}
               to={link.to}
               onClick={handleMenuClose}
+              selected={location.pathname === link.to}
             >
               {link.label}
             </MenuItem>

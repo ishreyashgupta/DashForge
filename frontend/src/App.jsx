@@ -5,6 +5,7 @@ import "react-toastify/dist/ReactToastify.css";
 
 // Critical UDF component (kept eagerly loaded if used often)
 import SavedUDFForms from "./Pages/Admin/Dashboard/UDF/SavedUDFForms";
+import Profile from "./Pages/User/Dashboard/Profile";
 
 // Lazy-loaded components
 const DashboardWrapper = lazy(() => import("./Helper/DashboardWrapper"));
@@ -29,7 +30,6 @@ function App() {
           <Route path="/" element={<LoginForm />} />
           <Route path="/login" element={<LoginForm />} />
           <Route path="/register" element={<RegisterForm />} />
-
           {/* ---------- Protected Routes with Layout ---------- */}
           <Route element={<Layout />}>
             {/* User routes */}
@@ -38,6 +38,7 @@ function App() {
             <Route path="/create-form" element={<UDFBuilder />} />
             <Route path="/udf/forms" element={<SavedUDFForms />} />
             <Route path="/udf/fill/:formId" element={<DashboardWrapper />} />
+             <Route path="/profile" element={<Profile />} />
 
             {/* ---------- Admin Dashboard Routes ---------- */}
             <Route path="/admin/dashboard" element={<AdminDashboard />}>

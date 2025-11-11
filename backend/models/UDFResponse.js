@@ -7,6 +7,11 @@ const UDFResponseSchema = new mongoose.Schema(
       ref: "UDFForm",
       required: true,
     },
+    assignmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FormAssignment",
+      required: true,
+    },
     data: {
       type: Object, // Stores all field values submitted by user
       required: true,

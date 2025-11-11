@@ -80,18 +80,16 @@ export const submitUDFResponse = async (formId, values) => {
 };
 
 // Get all responses for a form ✅
+// Get all responses for a form ✅
 export const getUDFResponses = async (formId) => {
   if (!formId || typeof formId !== "string") {
-    console.error("❌ getUDFResponses called without a valid formId:", formId);
     throw new Error("Invalid formId — cannot fetch responses.");
   }
 
-  const res = await fetch(`${RESPONSES_API}/${formId}`);
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error("❌ Error fetching responses:", errorText);
-    throw new Error(`Failed to fetch responses: ${res.statusText}`);
-  }
+  const res = await fetch(`http://localhost:5000/api/responses/${formId}`);
+  if (!res.ok) throw new Error(`Failed to fetch responses: ${res.statusText}`);
 
-  return res.json();
+  const data = await res.json();
+  console.log("✅ Responses fetched for form", formId, data);
+  return data;
 };

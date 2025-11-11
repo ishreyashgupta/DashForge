@@ -1,24 +1,65 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { getUDFResponses } from "../../../../services/udfservice";
+import { getUserAssignmentResponses } from "../../../../services/userService";
 
-export default function DynamicResponsesViewer({ form, formId, onClose }) {
+/**
+ * DynamicResponsesViewer
+ *
+ * - 👤 User Mode → Uses pre-fetched `responses` passed via props OR fetches via assignmentId
+ * - 🧑‍💼 Admin Mode → Automatically fetches all responses via `formId`
+ */
+export default function DynamicResponsesViewer({ form, formId, responses: propResponses, onClose }) {
   const [responses, setResponses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
+  /**
+   * 🧠 Fetch or Use Preloaded Responses
+   * - User mode → uses prop responses or assignment API
+   * - Admin mode → fetches all responses by formId
+   */
   useEffect(() => {
-    setLoading(true);
-    getUDFResponses(formId)
-      .then((res) => setResponses(Array.isArray(res) ? res : []))
-      .catch((e) => setErr(e?.message || "Failed to load responses"))
-      .finally(() => setLoading(false));
-  }, [formId]);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setErr("");
 
+        // ✅ Case 1: User provided pre-fetched responses (from parent)
+        if (propResponses && Array.isArray(propResponses)) {
+          setResponses(propResponses);
+          return;
+        }
+
+        // ✅ Case 2: User mode - has assignmentId (form.assignmentId)
+        if (form?.assignmentId) {
+          const token = localStorage.getItem("token");
+          const res = await getUserAssignmentResponses(token, form.assignmentId);
+          setResponses(res.responses || []);
+          return;
+        }
+
+        // ✅ Case 3: Admin mode - fetch all responses by formId
+        if (formId) {
+          const { getUDFResponses } = await import("../../../../services/udfservice");
+          const res = await getUDFResponses(formId);
+          setResponses(Array.isArray(res) ? res : []);
+        }
+      } catch (e) {
+        console.error("❌ Error fetching responses:", e);
+        setErr(e?.message || "Failed to load responses");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [formId, form?.assignmentId, propResponses]);
+
+  /**
+   * 🧩 Build Dynamic Table Columns
+   */
   const columns = useMemo(() => {
-    // Collect all keys present across responses
     const keysInData = new Set();
-    responses.forEach((r) => {0.
-      .0
+    responses.forEach((r) => {
       const data = r?.data || {};
       Object.keys(data).forEach((k) => keysInData.add(k));
     });
@@ -32,34 +73,33 @@ export default function DynamicResponsesViewer({ form, formId, onClose }) {
       seen.add(key);
     };
 
-    // Prefer ordering by form schema
+    // Prefer form field order
     (form?.fields || []).forEach((f) => {
       const keyCandidate =
         f?.name || f?.fieldName || f?.key || f?.id || f?._id || f?.label;
-      // If schema key isn't present in responses, still include it (helps empty states)
       addCol(keyCandidate, f?.label || f?.placeholder || f?.name, f?.type);
     });
 
-    // Add any extra keys found in responses but not in schema
+    // Add leftover keys not defined in the form
     keysInData.forEach((k) => addCol(k, k, undefined));
 
-    // Always include Submitted At (createdAt)
+    // Always include "Submitted At"
     addCol("__createdAt", "Submitted At", "datetime");
 
     return cols;
   }, [responses, form]);
 
+  /**
+   * 🧩 Format Table Cell Values
+   */
   const formatCell = (value, type) => {
     if (value == null) return "";
     if (Array.isArray(value)) {
       return value
-        .map((v) =>
-          typeof v === "object" ? JSON.stringify(v, null, 0) : String(v)
-        )
+        .map((v) => (typeof v === "object" ? JSON.stringify(v, null, 0) : String(v)))
         .join(", ");
     }
     if (typeof value === "object") {
-      // Handle common file shape { url, name }
       if (value?.url) {
         return (
           <a href={value.url} target="_blank" rel="noreferrer">
@@ -73,7 +113,6 @@ export default function DynamicResponsesViewer({ form, formId, onClose }) {
       const d = new Date(value);
       return isNaN(d) ? String(value) : d.toLocaleString();
     }
-    // auto-link plain URLs
     const s = String(value);
     if (/^https?:\/\//i.test(s)) {
       return (
@@ -82,36 +121,39 @@ export default function DynamicResponsesViewer({ form, formId, onClose }) {
         </a>
       );
     }
-    // boolean nicer
     if (typeof value === "boolean") return value ? "Yes" : "No";
     return s;
   };
 
+  /**
+   * 🧩 Build Table Rows
+   */
   const rows = useMemo(() => {
-    return (responses || []).map((r) => {
-      const base = { ...(r?.data || {}) };
-      base.__createdAt = r?.createdAt || r?._createdAt || r?.timestamp;
-      return { _id: r?._id || Math.random().toString(36).slice(2), ...base };
-    });
+    return (responses || [])
+      .map((r) => {
+        const base = { ...(r?.data || {}) };
+        base.__createdAt = r?.createdAt || r?._createdAt || r?.timestamp;
+        return { _id: r?._id || Math.random().toString(36).slice(2), ...base };
+      })
+      .sort((a, b) => new Date(b.__createdAt || 0) - new Date(a.__createdAt || 0));
   }, [responses]);
 
+  // ------------------ UI ------------------
   return (
     <div
-  style={{
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.5)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 1000,
-  }}
-  onClick={(e) => {
-    if (e.target === e.currentTarget) {
-      onClose?.();  // ✅ Correct function call
-    }
-  }}
->
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+    >
       <div
         style={{
           background: "#fff",
@@ -125,6 +167,7 @@ export default function DynamicResponsesViewer({ form, formId, onClose }) {
           flexDirection: "column",
         }}
       >
+        {/* ---------- Header ---------- */}
         <div
           style={{
             padding: "14px 18px",
@@ -142,6 +185,13 @@ export default function DynamicResponsesViewer({ form, formId, onClose }) {
             <div style={{ fontSize: 12, color: "#666" }}>
               {form?.description}
             </div>
+            <div style={{ fontSize: 12, color: "#999" }}>
+              {propResponses
+                ? "Viewing your submitted responses"
+                : form?.assignmentId
+                ? "Viewing your assignment responses"
+                : "Viewing all responses"}
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -158,15 +208,26 @@ export default function DynamicResponsesViewer({ form, formId, onClose }) {
           </button>
         </div>
 
+        {/* ---------- Table or Message ---------- */}
         <div style={{ padding: 16 }}>
           {loading ? (
             <div>Loading responses…</div>
           ) : err ? (
             <div style={{ color: "crimson" }}>{err}</div>
           ) : rows.length === 0 ? (
-            <div style={{ color: "#555" }}>No responses yet.</div>
+            <div style={{ textAlign: "center", padding: "20px", color: "#777" }}>
+              {propResponses || form?.assignmentId
+                ? "You haven’t submitted this form yet."
+                : "No responses found for this form."}
+            </div>
           ) : (
-            <div style={{ overflow: "auto", border: "1px solid #eee", borderRadius: 10 }}>
+            <div
+              style={{
+                overflow: "auto",
+                border: "1px solid #eee",
+                borderRadius: 10,
+              }}
+            >
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr>
@@ -202,7 +263,9 @@ export default function DynamicResponsesViewer({ form, formId, onClose }) {
                           }}
                         >
                           {formatCell(
-                            c.key === "__createdAt" ? row.__createdAt : row[c.key],
+                            c.key === "__createdAt"
+                              ? row.__createdAt
+                              : row[c.key],
                             c.type === "datetime" ? "datetime" : c.type
                           )}
                         </td>

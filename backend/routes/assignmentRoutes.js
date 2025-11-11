@@ -7,7 +7,8 @@ const {
   updateAssignmentStatus,
   getAllAssignments,
   deleteAssignment,
-} = require("../controllers/assignmentController");
+  getAssignmentResponses,
+} = require("../controllers/assignmentController"); // ✅ Import new function
 
 const { protect } = require("../middleware/authMiddleware"); // JWT/session auth
 
@@ -19,8 +20,7 @@ const router = express.Router();
 router.get("/user/:userId", protect, getUserAssignments);
 
 // Validate survey token (can be accessed without login if needed)
-router.get("/validate", protect,validateSurveyToken );
-// router.get("/assignment/token/:token", );
+router.get("/validate", protect, validateSurveyToken);
 
 // Update assignment status (requires login)
 router.put("/status", protect, updateAssignmentStatus);
@@ -38,5 +38,9 @@ router.get("/", protect, getAllAssignments);
 
 // Delete an assignment by ID
 router.delete("/:id", protect, deleteAssignment);
+
+// ------------------ NEW SAFE ROUTE ------------------
+// Get responses for a specific assignment (type-compatible)
+router.get("/:assignmentId/responses", protect, getAssignmentResponses);
 
 module.exports = router;

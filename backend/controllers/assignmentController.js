@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const User = require("../models/User");
 const UDFForm = require("../models/UDFForm");
 const FormAssignment = require("../models/FormAssignment");
+const UDFResponse = require("../models/UDFResponse"); // ✅ Make sure to import this at the top
 
 /**
  * Utility: format assignment response consistently
@@ -263,5 +264,51 @@ exports.getAssignmentByToken = async (req, res) => {
   } catch (error) {
     console.error("❌ Error in getAssignmentByToken:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+/**
+ * Get responses for a given assignment (safe type-compatible addition)
+ */
+exports.getAssignmentResponses = async (req, res) => {
+  try {
+    const { assignmentId } = req.params;
+
+    const assignment = await FormAssignment.findById(assignmentId)
+      .populate("formId", "name description");
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: "Assignment not found" });
+    }
+
+    const formId = assignment.formId?._id || assignment.formId;
+    if (!formId) {
+      return res.status(404).json({ success: false, message: "No form linked to this assignment" });
+    }
+
+    // Optionally restrict access for non-admins
+    // if (!req.user.isAdmin && assignment.userId.toString() !== req.user._id.toString()) {
+    //   return res.status(403).json({ success: false, message: "Not authorized to view these responses" });
+    // }
+
+    // ✅ Fetch responses linked to this form
+    const responses = await UDFResponse.find({ assignmentId }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      form: {
+        id: formId,
+        name: assignment.formId?.name,
+        description: assignment.formId?.description,
+      },
+      assignment: {
+        id: assignment._id,
+        userId: assignment.userId,
+        status: assignment.status,
+      },
+      responses, // ✅ type remains identical to getUDFResponses(formId)
+    });
+  } catch (error) {
+    console.error("❌ Error in getAssignmentResponses:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch assignment responses" });
   }
 };

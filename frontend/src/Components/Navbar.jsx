@@ -37,8 +37,7 @@ export default function Navbar() {
 
       case "user":
         setLinks([
-          { label: "Dashboard", to: "/user/dashboard" },
-          { label: "My Forms", to: "/user/forms" },
+          { label: "My Forms", to: "/dashboard" },
           { label: "Profile", to: "/profile" },
         ]);
         break;

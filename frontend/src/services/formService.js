@@ -1,56 +1,62 @@
 // src/services/formService.js
+import axios from "axios";
 
+const FORM_API = "http://localhost:5000/api/form";
+const FORMS_API = "http://localhost:5000/api/forms";
+
+const formApi = axios.create({
+  baseURL: FORM_API,
+  headers: { "Content-Type": "application/json" },
+});
+
+// --- Fetch form details (legacy) ---
 export const fetchFormDetails = async (token) => {
   try {
-    const res = await fetch("http://localhost:5000/api/form/check-form", {
+    const res = await formApi.get("/check-form", {
       headers: { Authorization: `Bearer ${token}` },
     });
-    return res.json();
+    return res.data;
   } catch (err) {
-    console.error("Fetch form error:", err);
-    throw err;
+    console.error("❌ Error fetching form details:", err);
+    throw new Error(err.response?.data?.message || "Failed to fetch form details");
   }
 };
 
+// --- Submit form (legacy) ---
 export const submitForm = async (formData, token) => {
-  return fetch("http://localhost:5000/api/form/submit-form", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(formData),
-  });
+  try {
+    const res = await formApi.post("/submit-form", formData, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  } catch (err) {
+    console.error("❌ Error submitting form:", err);
+    throw new Error(err.response?.data?.message || "Failed to submit form");
+  }
 };
 
+// --- Update form (legacy) ---
 export const updateForm = async (formData, token) => {
-  return fetch("http://localhost:5000/api/form/update-form", {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(formData),
-  });
+  try {
+    const res = await formApi.put("/update-form", formData, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+  } catch (err) {
+    console.error("❌ Error updating form:", err);
+    throw new Error(err.response?.data?.message || "Failed to update form");
+  }
 };
 
+// --- Fetch form by ID (optional) ---
 export const fetchFormById = async (formId, token) => {
   try {
-    const res = await fetch(`http://localhost:5000/api/forms/${formId}`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    const res = await axios.get(`${FORMS_API}/${formId}`, {
+      headers: { Authorization: `Bearer ${token}` },
     });
-
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.message || "Failed to fetch form.");
-    }
-
-    return res.json(); // should return { form: { ... } }
+    return res.data; // { form: {...} }
   } catch (err) {
-    console.error("Fetch form by ID error:", err);
-    throw err;
+    console.error("❌ Error fetching form by ID:", err);
+    throw new Error(err.response?.data?.message || "Failed to fetch form by ID");
   }
 };

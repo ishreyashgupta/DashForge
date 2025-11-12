@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const FormAssignment = require("../models/FormAssignment");
 const User = require("../models/User"); // ✅ make sure this path matches your user model
 const UDFResponse = require("../models/UDFResponse");
-
+const UDFForm = require("../models/UDFForm");
 /**
  * Utility: format assignment consistently
  */
@@ -24,22 +24,44 @@ const formatAssignment = (assignment) => ({
  */
 exports.getMyAssignments = async (req, res) => {
   try {
-    const userId = req.user._id; // JWT/auth middleware sets req.user
+    const userId = req.user._id;
 
+    // Fetch assignments with related form data
     const assignments = await FormAssignment.find({ userId })
-      .populate("formId", "name description")
-      .populate("formId") // <-- includes all form fields
-      .sort({ assignedAt: -1 });
+      .populate("formId", "name description status fields") // only what you need
+      .sort({ assignedAt: -1 })
+      .lean();
 
+    // ✅ Filter out deleted / missing forms
+    const validAssignments = assignments.filter((a) => a.formId);
+
+    // ✅ Optionally: clean orphaned assignments (admin deleted form)
+    const orphanedAssignments = assignments.filter((a) => !a.formId);
+    if (orphanedAssignments.length > 0) {
+      await FormAssignment.deleteMany({
+        _id: { $in: orphanedAssignments.map((a) => a._id) },
+      });
+    }
+
+    // ✅ Format for frontend (same as before)
     res.status(200).json({
       success: true,
-      assignments: assignments.map(formatAssignment),
+      assignments: validAssignments.map((a) => ({
+        assignmentId: a._id,
+        formName: a.formId?.name || "Untitled Form",
+        formDescription: a.formId?.description || "",
+        status: a.status,
+      })),
     });
   } catch (err) {
     console.error("❌ getMyAssignments error:", err);
-    res.status(500).json({ success: false, message: "Internal server error" });
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };
+
 
 /**
  * Get a single assigned form by assignmentId
@@ -276,5 +298,90 @@ exports.getAssignmentResponses = async (req, res) => {
   } catch (error) {
     console.error("❌ Error in getAssignmentResponses:", error);
     res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+/**
+ * @route   GET /api/user/assignments/:id/edit-data
+ * @desc    Returns full form fields + user’s last response for editing
+ * @access  Private (User)
+ */
+exports.getUserAssignmentEditData = async (req, res) => {
+  try {
+    const { assignmentId } = req.query;
+
+    if (!assignmentId || !mongoose.Types.ObjectId.isValid(assignmentId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid assignmentId required",
+      });
+    }
+
+    const assignment = await FormAssignment.findById(assignmentId)
+      .populate("formId", "name description fields");
+
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        message: "Assignment not found",
+      });
+    }
+
+    if (assignment.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const lastResponse = await UDFResponse.findOne({ assignmentId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      form: {
+        id: assignment.formId._id,
+        name: assignment.formId.name,
+        description: assignment.formId.description,
+        fields: Array.isArray(assignment.formId.fields)
+          ? assignment.formId.fields
+          : [],
+      },
+      assignment: {
+        id: assignment._id,
+        userId: assignment.userId,
+        status: assignment.status,
+      },
+      prefillData: lastResponse?.data || {},
+    });
+  } catch (error) {
+    console.error("❌ getUserAssignmentEditData error:", error.message);
+    console.error(error.stack);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Internal server error",
+    });
+  }
+};
+
+
+exports.updateAssignmentResponse = async (req, res) => {
+  try {
+    const { assignmentId } = req.query;
+    const { body } = req;
+
+    if (!assignmentId)
+      return res.status(400).json({ success: false, message: "assignmentId required" });
+
+    const response = await UDFResponse.findOneAndUpdate(
+      { assignmentId },
+      { data: body, updatedAt: new Date() },
+      { new: true, upsert: false }
+    );
+
+    res.status(200).json({ success: true, response });
+  } catch (err) {
+    console.error("❌ updateAssignmentResponse:", err);
+    res.status(500).json({ success: false, message: err.message });
   }
 };

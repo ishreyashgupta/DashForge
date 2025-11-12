@@ -1,4 +1,3 @@
-import React from "react";
 import useAuth from "../hooks/useAuth";
 import UserDashboard from "../Pages/User/Dashboard/UserDashboard";
 import AdminDashboard from "../Pages/Admin/Dashboard/AdminDashboard";

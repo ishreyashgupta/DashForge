@@ -1,95 +1,121 @@
+import axios from "axios";
+
 const API_BASE = "http://localhost:5000/api/udf";
 const RESPONSES_API = "http://localhost:5000/api/responses";
 
+// ✅ Create reusable Axios instances for UDF and Responses
+const udfApi = axios.create({
+  baseURL: API_BASE,
+  headers: { "Content-Type": "application/json" },
+});
+
+const responseApi = axios.create({
+  baseURL: RESPONSES_API,
+  headers: { "Content-Type": "application/json" },
+});
+
 // =======================
-// UDF Forms
+// 🧩 UDF Forms
 // =======================
 
-// Fetch all forms (full forms)
+// --- Get all forms ---
 export const getAllUDFForms = async () => {
-  const res = await fetch(`${API_BASE}/`);
-  if (!res.ok) throw new Error("Failed to fetch forms");
-  return res.json();
+  try {
+    const res = await udfApi.get("/");
+    return res.data; // { forms: [...] }
+  } catch (err) {
+    console.error("❌ Error fetching all UDF forms:", err);
+    throw new Error(err.response?.data?.message || "Failed to fetch forms");
+  }
 };
 
-// Delete form by ID
+// --- Delete form by ID ---
 export const deleteUDFForm = async (id) => {
-  const res = await fetch(`${API_BASE}/${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error("Failed to delete form");
-  return res.json();
+  try {
+    const res = await udfApi.delete(`/${id}`);
+    return res.data; // { success: true }
+  } catch (err) {
+    console.error("❌ Error deleting UDF form:", err);
+    throw new Error(err.response?.data?.message || "Failed to delete form");
+  }
 };
 
-// Update form by ID
+// --- Update form by ID ---
 export const updateUDFForm = async (id, data) => {
-  const res = await fetch(`${API_BASE}/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error("Failed to update form");
-  return res.json();
+  try {
+    const res = await udfApi.put(`/${id}`, data);
+    return res.data; // { success, updatedForm }
+  } catch (err) {
+    console.error("❌ Error updating UDF form:", err);
+    throw new Error(err.response?.data?.message || "Failed to update form");
+  }
 };
 
-// Create a new form
+// --- Create a new form ---
 export const createUDFForm = async (payload) => {
-  const res = await fetch(`${API_BASE}/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  try {
+    const res = await udfApi.post("/", payload);
+    return res.data; // { success, form }
+  } catch (err) {
+    console.error("❌ Error creating UDF form:", err);
+    throw new Error(err.response?.data?.message || "Failed to create form");
+  }
 };
 
-// Get single form by ID
+// --- Get single form by ID ---
 export const getUDFFormById = async (id) => {
-  const res = await fetch(`${API_BASE}/${id}`);
-  if (!res.ok) throw new Error("Failed to fetch UDF form by ID");
-  return res.json();
+  try {
+    const res = await udfApi.get(`/${id}`);
+    return res.data; // { success, form }
+  } catch (err) {
+    console.error("❌ Error fetching UDF form by ID:", err);
+    throw new Error(err.response?.data?.message || "Failed to fetch UDF form by ID");
+  }
 };
 
-// Get metadata for frontend dropdowns
+// --- Get metadata (for dropdowns etc.) ---
 export const getMeta = async () => {
-  const res = await fetch(`${API_BASE}/meta`, {
-    method: "GET",
-    headers: { "Content-Type": "application/json" },
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  try {
+    const res = await udfApi.get("/meta");
+    return res.data; // { metaData: {...} }
+  } catch (err) {
+    console.error("❌ Error fetching UDF meta:", err);
+    throw new Error(err.response?.data?.message || "Failed to fetch metadata");
+  }
 };
-// Submit a response ✅
+
+// =======================
+// 🧾 Responses
+// =======================
+
+// --- Submit a response ---
 export const submitUDFResponse = async (formId, values) => {
   if (!formId || typeof formId !== "string") {
-    console.error("❌ submitUDFResponse called without a valid formId:", formId);
+    console.error("❌ submitUDFResponse called without valid formId:", formId);
     throw new Error("Invalid formId — cannot submit response.");
   }
 
-  const res = await fetch(`${RESPONSES_API}/${formId}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(values),
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error("❌ Error submitting response:", errorText);
-    throw new Error(`Failed to submit response: ${res.statusText}`);
+  try {
+    const res = await responseApi.post(`/${formId}`, values);
+    return res.data; // { success, message, responseId }
+  } catch (err) {
+    console.error("❌ Error submitting response:", err);
+    throw new Error(err.response?.data?.message || "Failed to submit response");
   }
-
-  return res.json();
 };
 
-// Get all responses for a form ✅
-// Get all responses for a form ✅
+// --- Get all responses for a form ---
 export const getUDFResponses = async (formId) => {
   if (!formId || typeof formId !== "string") {
     throw new Error("Invalid formId — cannot fetch responses.");
   }
 
-  const res = await fetch(`http://localhost:5000/api/responses/${formId}`);
-  if (!res.ok) throw new Error(`Failed to fetch responses: ${res.statusText}`);
-
-  const data = await res.json();
-  console.log("✅ Responses fetched for form", formId, data);
-  return data;
+  try {
+    const res = await responseApi.get(`/${formId}`);
+    console.log("✅ Responses fetched for form:", formId, res.data);
+    return res.data; // { success, responses: [...] }
+  } catch (err) {
+    console.error("❌ Error fetching UDF responses:", err);
+    throw new Error(err.response?.data?.message || "Failed to fetch responses");
+  }
 };

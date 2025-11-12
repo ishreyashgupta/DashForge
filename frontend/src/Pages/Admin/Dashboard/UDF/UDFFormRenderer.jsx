@@ -37,29 +37,35 @@ export default function UDFFormRenderer({ form = {}, onSubmit, isEditing = false
   });
 
   // Keep state in sync when form updates
-  useEffect(() => {
-    if (!fields.length) return;
+  // 🔄 Sync form state when form or prefill data changes
+useEffect(() => {
 
-    setFormState((prev) => {
-      const next = { ...prev };
-      let changed = false;
+  console.log("Prefill Data:", form.prefillData);
+  console.log("Form State:", formState);
+  if (!fields.length) return;
 
-      for (const f of fields) {
-        if (!f || f.fieldType === "pageBreak") continue;
-        const name = f.fieldName || f.label || "";
-        if (!name) continue;
+  setFormState((prev) => {
+    const s = { ...prev };
+    for (const f of fields) {
+      if (!f || f.fieldType === "pageBreak") continue;
+      const name = f.fieldName || f.label || "";
+      if (!name) continue;
 
-        if (next[name] === undefined) {
-          changed = true;
-          if (f.inputType === "checkbox") next[name] = !!f.defaultValue;
-          else if (f.inputType === "multiselect") next[name] = Array.isArray(f.defaultValue) ? f.defaultValue : [];
-          else next[name] = f.defaultValue ?? "";
-        }
+      // ✅ Prefer prefill value when in edit mode
+      const prefillValue = form.prefillData?.[name];
+      if (prefillValue !== undefined) {
+        s[name] = prefillValue;
+      } else if (s[name] === undefined) {
+        if (f.inputType === "checkbox") s[name] = !!f.defaultValue;
+        else if (f.inputType === "multiselect")
+          s[name] = Array.isArray(f.defaultValue) ? f.defaultValue : [];
+        else s[name] = f.defaultValue ?? "";
       }
+    }
+    return s;
+  });
+}, [form.prefillData, fields]);
 
-      return changed ? next : prev;
-    });
-  }, [fields]);
 
   const [pageIndex, setPageIndex] = useState(0);
   const [errors, setErrors] = useState({});

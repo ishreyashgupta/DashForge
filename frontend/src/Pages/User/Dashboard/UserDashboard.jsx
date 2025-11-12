@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import useAuth from "../../../hooks/useAuth";
-import DynamicResponsesViewer from "./../../Admin/Dashboard/UDF/DynamicReponsesViewer";
+import DynamicResponsesViewer from "../../Admin/Dashboard/UDF/DynamicReponsesViewer";
 import * as userService from "../../../services/userService";
 import UDFFormRenderer from "../../Admin/Dashboard/UDF/UDFFormRenderer";
 
@@ -30,6 +30,7 @@ function Dashboard() {
   const [formDetails, setFormDetails] = useState(null);
   const [assignedForms, setAssignedForms] = useState([]);
   const [activeForm, setActiveForm] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false); // ✅ added
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -47,7 +48,10 @@ function Dashboard() {
 
       try {
         if (tokenFromLink) {
-          const assignmentData = await userService.getAssignmentByToken(tokenFromLink, jwtToken);
+          const assignmentData = await userService.getAssignmentByToken(
+            tokenFromLink,
+            jwtToken
+          );
           if (assignmentData?.form) {
             setActiveForm({
               ...assignmentData.form,
@@ -66,51 +70,73 @@ function Dashboard() {
     fetchData();
   }, [jwtToken, navigate, tokenFromLink]);
 
+  // ---------------- VIEW RESPONSES ----------------
   const handleShowDetails = async (assignmentId) => {
+    try {
+      const data = await userService.getUserAssignmentResponses(jwtToken, assignmentId);
+      if (!data?.form) return toast.error("No form linked to this assignment");
+
+      setFormDetails({
+        ...data.form,
+        assignmentId: data.assignment?.id,
+        responses: data.responses || [],
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to load responses");
+    }
+  };
+
+  // ---------------- FILL OR EDIT FORM ----------------
+  const handleFillForm = async (assignmentId, isEdit = false) => {
   try {
-    // New unified API call — pulls form + responses
-    const data = await userService.getUserAssignmentResponses(jwtToken, assignmentId);
+    // ✅ Use the correct new API
+    const data = await userService.getAssignmentEditData(jwtToken, assignmentId);
+    console.log("Fetched for edit:", data);
 
     if (!data?.form) {
-      toast.error("No form linked to this assignment");
+      toast.error("Form not found for this assignment");
       return;
     }
 
-    // ✅ Store both form and responses
-    setFormDetails({
-      ...data.form,
-      assignmentId: data.assignment?.id,
-      responses: data.responses || [],
-    });
-  } catch (error) {
-    console.error(error);
-    toast.error("Failed to load responses");
-  }
-};
+    // ✅ Prefill directly from backend
+    const prefillData = data.prefillData || {};
 
-
-  const handleFillForm = async (assignmentId) => {
-  try {
-    // ✅ Fetch both form and user's previous responses
-    const data = await userService.getUserAssignmentResponses(jwtToken, assignmentId);
-
-    if (!data?.form) {
-      toast.error("No form found for this assignment");
-      return;
-    }
-
-    // ✅ Pass form + previous responses
     setActiveForm({
       ...data.form,
       assignmentId,
-      prefillData: data.responses?.[0]?.responseData || {}, // assuming your backend returns an array of responses
+      prefillData,
     });
+
+    setIsEditMode(isEdit);
   } catch (error) {
-    console.error(error);
-    toast.error("Failed to fetch form for editing");
+    console.error("❌ Failed to fetch form:", error);
+    toast.error("Error loading form data");
   }
 };
 
+  // ---------------- SUBMIT HANDLER ----------------
+  const handleSubmitForm = async (payload) => {
+    try {
+      const apiCall = isEditMode
+        ? userService.updateAssignmentResponse
+        : userService.submitAssignment;
+
+      const res = await apiCall(jwtToken, activeForm.assignmentId, payload);
+      if (res.success) {
+        toast.success(
+          isEditMode ? "Form updated successfully!" : "Form submitted successfully!"
+        );
+        setActiveForm(null);
+        setIsEditMode(false);
+        const refreshed = await userService.getAssignedForms(jwtToken);
+        setAssignedForms(refreshed.assignments || []);
+      } else toast.error("Failed to save form");
+    } catch (error) {
+      console.error("❌ Error submitting form:", error);
+      toast.error("Error saving form data");
+    }
+  };
 
   // 🔹 RENDER START
   return (
@@ -150,34 +176,13 @@ function Dashboard() {
           {/* --- Active Form Renderer --- */}
           {activeForm ? (
             <Box sx={{ mt: 4 }}>
-              <Button
-                variant="outlined"
-                onClick={() => setActiveForm(null)}
-                sx={{ mb: 2 }}
-              >
+              <Button variant="outlined" onClick={() => setActiveForm(null)} sx={{ mb: 2 }}>
                 Back to Dashboard
               </Button>
 
               <UDFFormRenderer
                 form={activeForm}
-                onSubmit={async (payload) => {
-                  try {
-                    const res = await userService.submitAssignment(
-                      jwtToken,
-                      activeForm.assignmentId,
-                      payload
-                    );
-                    if (res.success) {
-                      toast.success("Form submitted successfully!");
-                      setActiveForm(null);
-                      const response = await userService.getAssignedForms(jwtToken);
-                      setAssignedForms(response.assignments || []);
-                    } else toast.error("Failed to submit form");
-                  } catch (error) {
-                    console.error(error);
-                    toast.error("Error submitting form");
-                  }
-                }}
+                onSubmit={handleSubmitForm} // ✅ unified submit handler
               />
             </Box>
           ) : (
@@ -195,15 +200,9 @@ function Dashboard() {
                 <Table>
                   <TableHead sx={{ backgroundColor: "primary.main" }}>
                     <TableRow>
-                      <TableCell sx={{ color: "white", fontWeight: 600 }}>
-                        Form Name
-                      </TableCell>
-                      <TableCell sx={{ color: "white", fontWeight: 600 }}>
-                        Description
-                      </TableCell>
-                      <TableCell sx={{ color: "white", fontWeight: 600 }}>
-                        Status
-                      </TableCell>
+                      <TableCell sx={{ color: "white", fontWeight: 600 }}>Form Name</TableCell>
+                      <TableCell sx={{ color: "white", fontWeight: 600 }}>Description</TableCell>
+                      <TableCell sx={{ color: "white", fontWeight: 600 }}>Status</TableCell>
                       <TableCell align="center" sx={{ color: "white", fontWeight: 600 }}>
                         Action
                       </TableCell>
@@ -216,23 +215,17 @@ function Dashboard() {
                         <TableRow
                           key={form.assignmentId}
                           hover
-                          sx={{
-                            "&:hover": { backgroundColor: "rgba(0,0,0,0.03)" },
-                          }}
+                          sx={{ "&:hover": { backgroundColor: "rgba(0,0,0,0.03)" } }}
                         >
                           <TableCell>
                             <Typography variant="subtitle1" fontWeight={600}>
                               {form.formName}
                             </Typography>
                           </TableCell>
-                          <TableCell>
-                            {form.formDescription || "No description"}
-                          </TableCell>
+                          <TableCell>{form.formDescription || "No description"}</TableCell>
                           <TableCell>
                             <Chip
-                              label={
-                                form.status.charAt(0).toUpperCase() + form.status.slice(1)
-                              }
+                              label={form.status.charAt(0).toUpperCase() + form.status.slice(1)}
                               color={
                                 form.status === "sent"
                                   ? "primary"
@@ -244,12 +237,11 @@ function Dashboard() {
                             />
                           </TableCell>
                           <TableCell align="center">
-                            {/* --- Button Logic Simplified --- */}
                             {form.status === "sent" && (
                               <Button
                                 variant="contained"
                                 color="primary"
-                                onClick={() => handleFillForm(form.assignmentId)}
+                                onClick={() => handleFillForm(form.assignmentId, false)}
                               >
                                 Fill Form
                               </Button>
@@ -260,7 +252,7 @@ function Dashboard() {
                                 <Button
                                   variant="outlined"
                                   color="primary"
-                                  onClick={() => handleFillForm(form.assignmentId)}
+                                  onClick={() => handleFillForm(form.assignmentId, true)}
                                 >
                                   Edit
                                 </Button>
@@ -273,9 +265,6 @@ function Dashboard() {
                                 </Button>
                               </Stack>
                             )}
-
-                            {form.status !== "sent" &&
-                              form.status !== "completed" && <CircularProgress size={24} />}
                           </TableCell>
                         </TableRow>
                       ))

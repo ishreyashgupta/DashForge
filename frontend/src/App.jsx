@@ -13,7 +13,7 @@ const LoginForm = lazy(() => import("./Pages/LoginPage/LoginPage"));
 const RegisterForm = lazy(() => import("./Pages/RegisterPage/RegisterPage"));
 const Layout = lazy(() => import("./Components/Common/Layout"));
 const UDFBuilder = lazy(() => import("./Pages/Admin/Dashboard/UDF/UDFBuilder"));
-const UserFormRenderer = lazy(() => import("./Pages/User/UserFormRenderer"));
+const UDFFormRenderer = lazy(() => import("./Pages/Admin/Dashboard/UDF/UDFFormRenderer"));
 const AdminDashboard = lazy(() => import("./Pages/Admin/Dashboard/AdminDashboard"));
 const AssignFormSection = lazy(() => import("./Pages/Admin/Dashboard/AssignFormSection"));
 const ResponsesSection = lazy(() => import("./Pages/Admin/Dashboard/ResponsesSection"));
@@ -50,7 +50,7 @@ function App() {
           <Route element={<Layout />}>
             {/* User routes */}
             <Route path="/dashboard" element={<DashboardWrapper />} />
-            <Route path="/form" element={<UserFormRenderer />} />
+            <Route path="/form" element={<UDFFormRenderer />} />
             <Route path="/create-form" element={<UDFBuilder />} />
             <Route path="/udf/forms" element={<ManageUDFForms />} />
             <Route path="/udf/fill/:formId" element={<DashboardWrapper />} />
